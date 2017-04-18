@@ -110,7 +110,7 @@ static WBRequest *wb_request = nil;
     return ^() {
         
         NSString *cachePath = [self pathForCache];
-
+        
         if (_minRequestInterval > 0 && [self timerIntervalOfCache:cachePath] < _minRequestInterval) {
             //去拿缓存
             id data = [NSKeyedUnarchiver unarchiveObjectWithFile:cachePath];
@@ -237,7 +237,7 @@ static WBRequest *wb_request = nil;
     if (_cacheData) {
         BOOL cache = [NSKeyedArchiver archiveRootObject:data toFile:cachePath];
         if (cache) {
-            WBLog(@"缓存成功");
+            WBLog(@"\n=====================================\n[缓存成功, 缓存路径:]\n%@\n=====================================\n",cachePath);
         } else {
             WBLog(@"缓存失败");
         }

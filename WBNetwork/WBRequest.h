@@ -79,6 +79,4 @@ typedef void(^WBProgress)(NSProgress *progress);
 - (WBRequest *(^)(BOOL isShowHUD))showHUD;
 - (WBRequest *(^)())startRequest;//发起请求
 
-
-
 @end
