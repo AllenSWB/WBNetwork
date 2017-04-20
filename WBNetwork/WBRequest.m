@@ -9,6 +9,7 @@
 #import "WBRequest.h"
 #import <CommonCrypto/CommonDigest.h>
 
+#import <objc/runtime.h>
 @interface WBRequest ()
 
 @property (strong, nonatomic) AFHTTPSessionManager *wb_AFManager;
@@ -123,17 +124,19 @@ static WBRequest *wb_request = nil;
         } else {
             //默认回调
             [self defaultCallBack];
-//            if ([self isNetworkReachable]) {
+            if ([self isNetworkReachable]) {
                 //开始请求
                 [self startRequestAPI:cachePath];
-//            } else {
-//                WBLog(@"没网啊...")
-//            }
+            } else {
+                WBLog(@"没网啊...")
+            }
         }
         
         //恢复默认参数
         if (![_defaultParameters isEqual:@{}]) {//有默认参数
             self.wb_parameters = [NSMutableDictionary dictionaryWithDictionary:_defaultParameters];
+        } else {
+            self.wb_parameters = [NSMutableDictionary dictionaryWithCapacity:0];
         }
         
         return self;
@@ -263,36 +266,65 @@ static WBRequest *wb_request = nil;
     }
 }
 /**
- 网络是否可用 TODO: 有问题
+ 网络是否可用
  */
 - (BOOL)isNetworkReachable {
-    AFNetworkReachabilityManager *manager = [AFNetworkReachabilityManager sharedManager];
-    [manager startMonitoring];
-    __block BOOL is;
-//    [manager setReachabilityStatusChangeBlock:^(AFNetworkReachabilityStatus status) {
-//        switch (status) {
-//            case AFNetworkReachabilityStatusUnknown:
-//            case AFNetworkReachabilityStatusNotReachable:
-//                is = NO;
-//                break;
-//            case AFNetworkReachabilityStatusReachableViaWiFi:
-//            case AFNetworkReachabilityStatusReachableViaWWAN:
-//                is = YES;
-//                break;
-//            default:
-//                break;
-//        }
-//    }];
-
-//    AFNetworkReachabilityStatus status = manager.networkReachabilityStatus;
-//    if (status == AFNetworkReachabilityStatusReachableViaWiFi || status == AFNetworkReachabilityStatusReachableViaWWAN) {
-//        return YES;
-//    } else {
-//        return NO;
-//    }
     
-    return is;
+    UIApplication *app = [UIApplication sharedApplication];
+    
+    NSArray *children = [[[app valueForKeyPath:@"statusBar"] valueForKeyPath:@"foregroundView"] subviews];
+    
+    BOOL isStautsVisiable = app.statusBarHidden;
+    if (isStautsVisiable) {
+        return YES;//如果不可见，下面的监测网络状态代码就没用了，直接去请求API去吧
+    }
+    
+    int type = 0;
+    for (id child in children) {
+        
+        if ([child isKindOfClass:NSClassFromString(@"UIStatusBarDataNetworkItemView")]) {
+            
+            @try {
+                type = [[child valueForKeyPath:@"dataNetworkType"] intValue];
+            } @catch (NSException *exception) {
+                type = 99;//系统的key变了，取不到了
+                WBLog(@"获取私有类属性失败了[%@]",exception);
+            } @finally {
+                
+            };
+        }
+    }
+    
+#ifdef DEBUG
+    switch (type) {
+        case 1:
+            WBLog(@"[网络：2G]");
+            break;
+        case 2:
+            WBLog(@"[网络：3G]");
+            break;
+        case 3:
+            WBLog(@"[网络：4G]");
+            break;
+        case 5:
+            WBLog(@"[网络：WIFI]");
+            break;
+        default:
+            WBLog(@"[网路未知]");
+            break;
+    }
+#else
+    
+#endif
+   
+    if (type == 1 || type == 2 || type == 3 || type == 5 || type == 99) {
+        return YES;
+    } else {
+        return NO;
+    }
+
 }
+
 #pragma mark - cache
 /**
  缓存文件路径
