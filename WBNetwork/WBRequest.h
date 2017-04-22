@@ -28,10 +28,12 @@
  
  - WBRequestPost: POST
  - WBRequestGet: GET
+ - WBRequestUplaod: 上传文件
  */
 typedef NS_ENUM(NSUInteger, WBRequestType) {
     WBRequestPost,
     WBRequestGet,
+    WBRequestUpload,
 };
 
 /**
@@ -47,11 +49,14 @@ typedef NS_ENUM(NSUInteger, WBResponseType) {
     WBResponseData,
 };
 
-
+//成功回调
 typedef void(^WBSuccess)(NSURLSessionDataTask *task,id responseObj);
+//失败回调
 typedef void(^WBFailure)(NSURLSessionDataTask *task,NSError *err);
+//进度回调
 typedef void(^WBProgress)(NSProgress *progress);
-
+//上传文件拼接数据
+typedef void(^WBConstructBody)(id<AFMultipartFormData> formData);
 
 /**
  WB 网络请求类
@@ -78,5 +83,7 @@ typedef void(^WBProgress)(NSProgress *progress);
 - (WBRequest *(^)(WBProgress progress))progress;
 - (WBRequest *(^)(BOOL isShowHUD))showHUD;
 - (WBRequest *(^)())startRequest;//发起请求
+
+- (WBRequest *(^)(WBConstructBody constructBody))constructBody;
 
 @end

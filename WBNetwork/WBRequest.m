@@ -21,6 +21,7 @@
 @property (copy, nonatomic) WBSuccess wb_success;
 @property (copy, nonatomic) WBFailure wb_failure;
 @property (copy, nonatomic) WBProgress wb_progress;
+@property (copy, nonatomic) WBConstructBody wb_constructBody;
 
 @end
 
@@ -143,6 +144,15 @@ static WBRequest *wb_request = nil;
     };
 }
 
+
+- (WBRequest *(^)(WBConstructBody))constructBody {
+    
+    return ^(WBConstructBody constructBody) {
+        _wb_constructBody = constructBody;
+        return self;
+    };
+}
+
 #pragma mark - network
 - (void)startRequestAPI:(NSString *)cachePath {
     
@@ -178,6 +188,23 @@ static WBRequest *wb_request = nil;
                
                 [self requestSuccessComplete:task obj:responseObject cachePath:cachePath];
                 
+            } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
+                [self requestFailureHandler:task error:error];
+            }];
+        }
+            break;
+        case WBRequestUpload:
+        {
+            [_wb_AFManager POST:_wb_url parameters:_wb_parameters constructingBodyWithBlock:^(id<AFMultipartFormData>  _Nonnull formData) {
+                if (_wb_constructBody) {
+                    _wb_constructBody(formData);
+                }
+            } progress:^(NSProgress * _Nonnull uploadProgress) {
+                if (_wb_progress) {
+                    _wb_progress(uploadProgress);
+                }
+            } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
+                [self requestSuccessComplete:task obj:responseObject cachePath:cachePath];
             } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
                 [self requestFailureHandler:task error:error];
             }];
