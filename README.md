@@ -13,7 +13,7 @@ iOS 网络请求库、基于AFN3、链式调用
 ####使用示例
 
         //默认参数
-        WBREQUEST.defaultParameters = @{@"appid":@"2016",@"appselect":@"cz2016"};
+        WBREQUEST.defaultParameters = @{@"appid":@"000",@"appselect":@"00000"};
         //开始一个请求
         WBREQUEST.url([GlobalPort getVerifyCodeAPI]).parameters(@{@"mobile":@"136********"}).success(^(NSURLSessionDataTask *task, id responsedObj) {
             //成功回调
