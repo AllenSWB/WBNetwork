@@ -49,17 +49,19 @@ typedef NS_ENUM(NSUInteger, WBResponseType) {
     WBResponseData,
 };
 
+
 //成功回调
 typedef void(^WBSuccess)(NSURLSessionDataTask *task,id responseObj);
 //失败回调
 typedef void(^WBFailure)(NSURLSessionDataTask *task,NSError *err);
 //进度回调
 typedef void(^WBProgress)(NSProgress *progress);
+
 //上传文件拼接数据
 typedef void(^WBConstructBody)(id<AFMultipartFormData> formData);
 
 /**
- WB 网络请求类
+ WBRequest网络请求类
  */
 @interface WBRequest : NSObject
 
@@ -82,8 +84,22 @@ typedef void(^WBConstructBody)(id<AFMultipartFormData> formData);
 - (WBRequest *(^)(WBFailure failure))failure;
 - (WBRequest *(^)(WBProgress progress))progress;
 - (WBRequest *(^)(BOOL isShowHUD))showHUD;
+- (WBRequest *(^)(BOOL isShowHUD,NSString *text))showTextHUD;
 - (WBRequest *(^)())startRequest;//发起请求
 
 - (WBRequest *(^)(WBConstructBody constructBody))constructBody;
+
+@end
+
+
+/**
+ 请求记录器
+ */
+@interface WBRequestRecorder : NSObject
+@property (strong, nonatomic) NSURLSessionDataTask *rr_task;
+@property (strong, nonatomic) NSString *rr_url;
+@property (copy, nonatomic) WBSuccess rr_success;
+@property (copy, nonatomic) WBFailure rr_failure;
+//@property (copy, nonatomic) WBProgress rr_progress;
 
 @end

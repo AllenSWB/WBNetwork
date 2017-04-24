@@ -23,6 +23,10 @@
 @property (copy, nonatomic) WBProgress wb_progress;
 @property (copy, nonatomic) WBConstructBody wb_constructBody;
 
+@property (strong, nonatomic) NSString *wb_loadingHudText;//加载hud文字
+
+@property (strong, nonatomic) NSMutableArray *recorderArray;//请求记录器数组
+
 @end
 
 static WBRequest *wb_request = nil;
@@ -66,7 +70,7 @@ static WBRequest *wb_request = nil;
 }
 - (WBRequest *(^)(NSString *))url {
     return ^(NSString *url) {
-        _wb_url = url;
+        self.wb_url = url;
         return self;
     };
 }
@@ -86,25 +90,32 @@ static WBRequest *wb_request = nil;
 }
 - (WBRequest *(^)(WBSuccess))success {
     return ^(WBSuccess success) {
-        _wb_success = success;
+        self.wb_success = success;
         return self;
     };
 }
 - (WBRequest *(^)(WBFailure))failure {
     return ^(WBFailure failure) {
-        _wb_failure = failure;
+        self.wb_failure = failure;
         return self;
     };
 }
 - (WBRequest *(^)(WBProgress))progress {
     return ^(WBProgress progress) {
-        _wb_progress = progress;
+        self.wb_progress = progress;
         return self;
     };
 }
 - (WBRequest *(^)(BOOL))showHUD {
     return ^(BOOL isShow) {
         _wb_isShowHUD = isShow;
+        return self;
+    };
+}
+- (WBRequest *(^)(BOOL, NSString *))showTextHUD {
+    return ^(BOOL isShow,NSString *text) {
+        _wb_isShowHUD = isShow;
+        _wb_loadingHudText = text;
         return self;
     };
 }
@@ -156,14 +167,17 @@ static WBRequest *wb_request = nil;
 #pragma mark - network
 - (void)startRequestAPI:(NSString *)cachePath {
     
-    WBLog(@"===========================请求开始========================\n[URL:]%@\n[参数:]%@\n===============================\n",_wb_url,_wb_parameters);
     if (_wb_isShowHUD) {
         [self showLoadingHUD];
     }
+    
+    NSURLSessionDataTask *task;
+    
     switch (_wb_requestType) {
         case WBRequestPost:
         {
-            [_wb_AFManager POST:_wb_url parameters:_wb_parameters progress:^(NSProgress * _Nonnull uploadProgress) {
+         task = [_wb_AFManager POST:_wb_url parameters:self.wb_parameters progress:^(NSProgress * _Nonnull uploadProgress) {
+             
                 if (_wb_progress) {
                     _wb_progress(uploadProgress);
                 }
@@ -180,7 +194,8 @@ static WBRequest *wb_request = nil;
             break;
         case WBRequestGet:
         {
-            [_wb_AFManager GET:_wb_url parameters:_wb_parameters progress:^(NSProgress * _Nonnull downloadProgress) {
+          task = [_wb_AFManager GET:_wb_url parameters:self.wb_parameters progress:^(NSProgress * _Nonnull downloadProgress) {
+
                 if (_wb_progress) {
                     _wb_progress(downloadProgress);
                 }
@@ -195,7 +210,7 @@ static WBRequest *wb_request = nil;
             break;
         case WBRequestUpload:
         {
-            [_wb_AFManager POST:_wb_url parameters:_wb_parameters constructingBodyWithBlock:^(id<AFMultipartFormData>  _Nonnull formData) {
+           task = [_wb_AFManager POST:_wb_url parameters:self.wb_parameters constructingBodyWithBlock:^(id<AFMultipartFormData>  _Nonnull formData) {
                 if (_wb_constructBody) {
                     _wb_constructBody(formData);
                 }
@@ -213,6 +228,11 @@ static WBRequest *wb_request = nil;
         default:
             break;
     }
+    
+    WBLog(@"===========================请求开始========================\n[DataTask:%@]\n[URL:]%@\n[参数:]%@\n===============================\n",task,_wb_url,_wb_parameters);
+
+    WBRequestRecorder *recorder = [self getRecorderFromUrl:_wb_url];
+    recorder.rr_task = task;
 }
 
 - (void)defaultCallBack {
@@ -273,9 +293,13 @@ static WBRequest *wb_request = nil;
         }
     }
     if (_wb_success) {
-        WBLog(@"===================================请求成功===================\n[URL:]%@\n[数据:]%@\n==========================================\n",_wb_url,data);
+        WBRequestRecorder *recorder = [self getRecorderformTask:task];
+        recorder.rr_success(task, data);
+
+        WBLog(@"===================================请求成功===================\n[DataTask:%@]\n[URL:]%@\n[数据:]%@\n==========================================\n",task,recorder.rr_url,data);
         
-        _wb_success(task, data);
+        //删除记录器
+        [self deleteRecorder:recorder];
     }
 }
 
@@ -287,10 +311,21 @@ static WBRequest *wb_request = nil;
         [self hideLoadingHUD];
     }
     if (_wb_failure) {
-        WBLog(@"===================================请求失败===================\n[URL:]%@\n[失败原因:]%@\n==========================================\n",_wb_url,error.description);
-
-        _wb_failure(task, error);
+        
+        WBRequestRecorder *recorder = [self getRecorderformTask:task];
+        recorder.rr_failure(task, error);
+        WBLog(@"===================================请求失败===================\n[DataTask:%@]\n[URL:]%@\n[失败原因:]%@\n==========================================\n",task,recorder.rr_url,error.description);
+        [self deleteRecorder:recorder];
     }
+}
+
+/**
+ 删除记录器
+
+ @param recorder 记录器
+ */
+- (void)deleteRecorder:(WBRequestRecorder *)recorder {
+    [self.recorderArray removeObject:recorder];
 }
 /**
  网络是否可用
@@ -422,14 +457,78 @@ static WBRequest *wb_request = nil;
 #pragma mark - hud
 - (void)showLoadingHUD {
     if (KEYWINDOW) {
-        [MBProgressHUD showHUDAddedTo:KEYWINDOW animated:YES];
+        if (_wb_loadingHudText && _wb_loadingHudText.length>0) {
+            MBProgressHUD *hud = [MBProgressHUD showHUDAddedTo:KEYWINDOW animated:YES];
+            [hud removeFromSuperViewOnHide];
+            hud.labelText = _wb_loadingHudText;
+        } else {
+            [MBProgressHUD showHUDAddedTo:KEYWINDOW animated:YES];
+        }
     }
 }
 - (void)hideLoadingHUD {
     if (KEYWINDOW) {
         [MBProgressHUD hideAllHUDsForView:KEYWINDOW animated:YES];
+        _wb_loadingHudText = nil;
     }
 }
+
+
+- (WBRequestRecorder *)getRecorderFromUrl:(NSString *)url {
+    for (WBRequestRecorder *recorder in self.recorderArray) {
+        if ([recorder.rr_url isEqualToString:url]) {
+            return recorder;
+        }
+    }
+    return nil;
+}
+
+- (WBRequestRecorder *)getRecorderformTask:(NSURLSessionDataTask *)task {
+    
+    for (WBRequestRecorder *recorder in self.recorderArray) {
+        if ([recorder.rr_task isEqual:task]) {
+            return recorder;
+        }
+    }
+    return nil;
+}
+
+#pragma mark - setter
+- (void)setDefaultParameters:(NSDictionary *)defaultParameters {
+    _defaultParameters = defaultParameters;
+    _wb_parameters= [NSMutableDictionary dictionaryWithDictionary:defaultParameters];
+}
+
+- (void)setWb_success:(WBSuccess)wb_success {
+    _wb_success = wb_success;
+    
+    WBRequestRecorder *recorder = [self getRecorderFromUrl:_wb_url];
+    if (recorder) {
+        recorder.rr_success = wb_success;
+    } else {
+        WBLog(@"出错，没有获取到recorder");
+    }
+}
+
+- (void)setWb_failure:(WBFailure)wb_failure {
+    _wb_failure = wb_failure;
+    
+    WBRequestRecorder *recorder = [self getRecorderFromUrl:_wb_url];
+    if (recorder) {
+        recorder.rr_failure = wb_failure;
+    } else{
+        WBLog(@"出错，没有获取到recorder");
+    }
+}
+
+- (void)setWb_url:(NSString *)wb_url {
+    _wb_url = wb_url;
+    //创建记录器
+    WBRequestRecorder *recorder = [[WBRequestRecorder alloc] init];
+    recorder.rr_url = wb_url;
+    [self.recorderArray addObject:recorder];
+}
+
 
 #pragma mark - lazy
 - (NSMutableDictionary *)wb_parameters {
@@ -438,6 +537,15 @@ static WBRequest *wb_request = nil;
     }
     return _wb_parameters;
 }
+
+- (NSMutableArray *)recorderArray {
+    if (!_recorderArray) {
+        _recorderArray = [NSMutableArray arrayWithCapacity:0];
+    }
+    return _recorderArray;
+}
+
+
 
 #pragma mark - other
 
@@ -461,5 +569,10 @@ static WBRequest *wb_request = nil;
             result[12],result[13],result[14],result[15]];
 }
 
+@end
+
+
+@implementation WBRequestRecorder
 
 @end
+
