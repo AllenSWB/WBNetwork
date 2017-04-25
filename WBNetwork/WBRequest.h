@@ -59,7 +59,7 @@ typedef void(^WBProgress)(NSProgress *progress);
 
 //上传文件拼接数据
 typedef void(^WBConstructBody)(id<AFMultipartFormData> formData);
-
+#pragma mark - Class请求
 /**
  WBRequest网络请求类
  */
@@ -92,6 +92,7 @@ typedef void(^WBConstructBody)(id<AFMultipartFormData> formData);
 @end
 
 
+#pragma mark - Class请求记录器
 /**
  请求记录器
  */
