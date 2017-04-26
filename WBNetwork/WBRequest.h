@@ -49,16 +49,16 @@ typedef NS_ENUM(NSUInteger, WBResponseType) {
     WBResponseData,
 };
 
-
 //成功回调
 typedef void(^WBSuccess)(NSURLSessionDataTask *task,id responseObj);
 //失败回调
 typedef void(^WBFailure)(NSURLSessionDataTask *task,NSError *err);
 //进度回调
 typedef void(^WBProgress)(NSProgress *progress);
-
 //上传文件拼接数据
 typedef void(^WBConstructBody)(id<AFMultipartFormData> formData);
+
+
 #pragma mark - Class请求
 /**
  WBRequest网络请求类
@@ -73,8 +73,6 @@ typedef void(^WBConstructBody)(id<AFMultipartFormData> formData);
 @property (assign, nonatomic) BOOL cacheData;
 //默认参数 默认 @{}
 @property (strong, nonatomic) NSDictionary *defaultParameters;
-//是否显示HUD 默认 NO
-@property (assign, nonatomic) BOOL wb_isShowHUD;
 
 #pragma mark - chain
 - (WBRequest *(^)(WBRequestType requestType))requestType;
@@ -99,8 +97,10 @@ typedef void(^WBConstructBody)(id<AFMultipartFormData> formData);
 @interface WBRequestRecorder : NSObject
 @property (strong, nonatomic) NSURLSessionDataTask *rr_task;
 @property (strong, nonatomic) NSString *rr_url;
+@property (strong, nonatomic) NSDictionary *rr_parameters;
 @property (copy, nonatomic) WBSuccess rr_success;
 @property (copy, nonatomic) WBFailure rr_failure;
+@property (strong, nonatomic) NSString *rr_cachePath;
 //@property (copy, nonatomic) WBProgress rr_progress;
 
 @end

@@ -8,8 +8,8 @@
 
 #import "WBRequest.h"
 #import <CommonCrypto/CommonDigest.h>
-
 #import <objc/runtime.h>
+
 @interface WBRequest ()
 
 @property (strong, nonatomic) AFHTTPSessionManager *wb_AFManager;
@@ -22,10 +22,9 @@
 @property (copy, nonatomic) WBFailure wb_failure;
 @property (copy, nonatomic) WBProgress wb_progress;
 @property (copy, nonatomic) WBConstructBody wb_constructBody;
-
+@property (assign, nonatomic) BOOL wb_isShowHUD;//是否显示HUD 默认 NO
 @property (strong, nonatomic) NSString *wb_loadingHudText;//加载hud文字
-
-@property (strong, nonatomic) NSMutableArray *recorderArray;//请求记录器数组
+@property (strong, nonatomic) NSMutableArray *wb_recorderArray;//请求记录器数组
 
 @end
 
@@ -122,7 +121,14 @@ static WBRequest *wb_request = nil;
 - (WBRequest *(^)())startRequest {
     return ^() {
         
-        NSString *cachePath = [self pathForCache];
+        //创建recorder
+        WBRequestRecorder *recorder = [[WBRequestRecorder alloc] init];
+        recorder.rr_url = self.wb_url;
+        recorder.rr_parameters = self.wb_parameters;
+        NSString *cachePath = [self pathForCache:recorder.rr_url];
+        recorder.rr_cachePath = cachePath;
+        [self.wb_recorderArray addObject:recorder];
+        
         
         if (_minRequestInterval > 0 && [self timerIntervalOfCache:cachePath] < _minRequestInterval) {
             //去拿缓存
@@ -131,6 +137,8 @@ static WBRequest *wb_request = nil;
                 if (_wb_success) {
                     WBLog(@"两次请求时间间隔太短，直接从缓存拿数据");
                     _wb_success(nil,data);
+                    //没有走请求
+                    [self afterRequestThing:recorder];
                 }
             }
         } else {
@@ -138,7 +146,7 @@ static WBRequest *wb_request = nil;
             [self defaultCallBack];
             if ([self isNetworkReachable]) {
                 //开始请求
-                [self startRequestAPI:cachePath];
+                [self startRequestAPIWithRecorder:recorder];
             } else {
                 WBLog(@"没网啊...")
             }
@@ -150,7 +158,7 @@ static WBRequest *wb_request = nil;
         } else {
             self.wb_parameters = [NSMutableDictionary dictionaryWithCapacity:0];
         }
-        
+       
         return self;
     };
 }
@@ -165,7 +173,7 @@ static WBRequest *wb_request = nil;
 }
 
 #pragma mark - network
-- (void)startRequestAPI:(NSString *)cachePath {
+- (void)startRequestAPIWithRecorder:(WBRequestRecorder *)recorder {
     
     if (_wb_isShowHUD) {
         [self showLoadingHUD];
@@ -176,14 +184,14 @@ static WBRequest *wb_request = nil;
     switch (_wb_requestType) {
         case WBRequestPost:
         {
-            task = [_wb_AFManager POST:_wb_url parameters:self.wb_parameters progress:^(NSProgress * _Nonnull uploadProgress) {
+            task = [_wb_AFManager POST:recorder.rr_url parameters:recorder.rr_parameters progress:^(NSProgress * _Nonnull uploadProgress) {
                 
                 if (_wb_progress) {
                     _wb_progress(uploadProgress);
                 }
             } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
                 
-                [self requestSuccessComplete:task obj:responseObject cachePath:cachePath];
+                [self requestSuccessComplete:task obj:responseObject cachePath:recorder.rr_cachePath];
                 
             } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
                 
@@ -194,14 +202,14 @@ static WBRequest *wb_request = nil;
             break;
         case WBRequestGet:
         {
-            task = [_wb_AFManager GET:_wb_url parameters:self.wb_parameters progress:^(NSProgress * _Nonnull downloadProgress) {
+            task = [_wb_AFManager GET:recorder.rr_url parameters:recorder.rr_parameters progress:^(NSProgress * _Nonnull downloadProgress) {
                 
                 if (_wb_progress) {
                     _wb_progress(downloadProgress);
                 }
             } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
                 
-                [self requestSuccessComplete:task obj:responseObject cachePath:cachePath];
+                [self requestSuccessComplete:task obj:responseObject cachePath:recorder.rr_cachePath];
                 
             } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
                 [self requestFailureHandler:task error:error];
@@ -210,7 +218,7 @@ static WBRequest *wb_request = nil;
             break;
         case WBRequestUpload:
         {
-            task = [_wb_AFManager POST:_wb_url parameters:self.wb_parameters constructingBodyWithBlock:^(id<AFMultipartFormData>  _Nonnull formData) {
+            task = [_wb_AFManager POST:recorder.rr_url parameters:recorder.rr_parameters constructingBodyWithBlock:^(id<AFMultipartFormData>  _Nonnull formData) {
                 if (_wb_constructBody) {
                     _wb_constructBody(formData);
                 }
@@ -219,7 +227,7 @@ static WBRequest *wb_request = nil;
                     _wb_progress(uploadProgress);
                 }
             } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
-                [self requestSuccessComplete:task obj:responseObject cachePath:cachePath];
+                [self requestSuccessComplete:task obj:responseObject cachePath:recorder.rr_cachePath];
             } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
                 [self requestFailureHandler:task error:error];
             }];
@@ -229,15 +237,11 @@ static WBRequest *wb_request = nil;
             break;
     }
     
-    WBLog(@"===========================请求开始========================\n[DataTask:%@]\n[URL:]%@\n[参数:]%@\n===============================\n",task,_wb_url,_wb_parameters);
+    WBLog(@"===========================请求开始========================\n[DataTask:%@]\n[URL:]%@\n[参数:]%@\n===============================\n",task,recorder.rr_url,recorder.rr_parameters);
     
-    //创建recorder
-    WBRequestRecorder *recorder = [[WBRequestRecorder alloc] init];
-    recorder.rr_url = _wb_url;
     recorder.rr_success = _wb_success;
     recorder.rr_failure = _wb_failure;
     recorder.rr_task = task;
-    [self.recorderArray addObject:recorder];
 }
 
 - (void)defaultCallBack {
@@ -299,16 +303,15 @@ static WBRequest *wb_request = nil;
     }
     
     
-    WBRequestRecorder *recorder = [self getRecorderformTask:task];
+    WBRequestRecorder *recorder = [self getRecorderfromTask:task];
     
     if (recorder && recorder.rr_success) {
         recorder.rr_success(task, data);
         
         WBLog(@"===================================请求成功===================\n[DataTask:%@]\n[URL:]%@\n[数据:]%@\n==========================================\n",task,recorder.rr_url,data);
-        
-        //删除记录器
-        [self deleteRecorder:recorder];
     }
+    [self afterRequestThing:recorder];
+    
 }
 
 /**
@@ -319,20 +322,29 @@ static WBRequest *wb_request = nil;
         [self hideLoadingHUD];
     }
     
-    WBRequestRecorder *recorder = [self getRecorderformTask:task];
+    WBRequestRecorder *recorder = [self getRecorderfromTask:task];
     if (recorder && recorder.rr_failure) {
         recorder.rr_failure(task, error);
         WBLog(@"===================================请求失败===================\n[DataTask:%@]\n[URL:]%@\n[失败原因:]%@\n==========================================\n",task,recorder.rr_url,error.description);
-        [self deleteRecorder:recorder];
+        
+        //尝试去拿缓存
+        id data = [NSKeyedUnarchiver unarchiveObjectWithFile:[self pathForCache:recorder.rr_url]];
+        if (data) {
+            if (recorder.rr_success) {
+                WBLog(@"从缓存拿数据成功");
+                recorder.rr_success(nil,data);
+            }
+        }
     }
+    [self afterRequestThing:recorder];
 }
 
 /**
  根据task从recorderArray获取recorder
  */
-- (WBRequestRecorder *)getRecorderformTask:(NSURLSessionDataTask *)task {
+- (WBRequestRecorder *)getRecorderfromTask:(NSURLSessionDataTask *)task {
     
-    for (WBRequestRecorder *recorder in self.recorderArray) {
+    for (WBRequestRecorder *recorder in self.wb_recorderArray) {
         if ([recorder.rr_task isEqual:task]) {
             return recorder;
         }
@@ -342,13 +354,32 @@ static WBRequest *wb_request = nil;
 
 
 /**
- 删除记录器
- 
- @param recorder 记录器
+ 请求完成之后的事情 -> 请求成功、请求失败、网络不好没有请求
+ 1. 删除记录器
+ 2. 清空WBRequest的一些属性
  */
-- (void)deleteRecorder:(WBRequestRecorder *)recorder {
-    [self.recorderArray removeObject:recorder];
+- (void)afterRequestThing:(WBRequestRecorder *)recorder {
+    [self nilParameters];
+    [self deleteRecorder:recorder];
 }
+
+/**
+ 删除记录器
+  */
+- (void)deleteRecorder:(WBRequestRecorder *)recorder {
+    [self.wb_recorderArray removeObject:recorder];
+}
+
+/**
+ 置空一些属性
+ */
+- (void)nilParameters {
+    self.wb_url = nil;
+    self.wb_success = nil;
+    self.wb_failure = nil;
+    self.wb_progress = nil;
+}
+
 /**
  网络是否可用
  */
@@ -412,19 +443,19 @@ static WBRequest *wb_request = nil;
 /**
  缓存文件路径
  */
-- (NSString *)pathForCache {
+- (NSString *)pathForCache:(NSString *)url {
     NSString *basePath = [self baseCachePath];
     if (basePath.length == 0) {
         return @"";
     } else {
-        return [basePath stringByAppendingPathComponent:[self nameForCache]];
+        return [basePath stringByAppendingPathComponent:[self nameForCache:url]];
     }
 }
 
 /**
  缓存文件名 由'请求方式+URL'拼接而成
  */
-- (NSString *)nameForCache {
+- (NSString *)nameForCache:(NSString *)url {
     // requestType + URL
     NSString *reqType;
     switch (_wb_requestType) {
@@ -437,7 +468,7 @@ static WBRequest *wb_request = nil;
         default:
             break;
     }
-    NSString *name = [NSString stringWithFormat:@"%@+%@",reqType,_wb_url];
+    NSString *name = [NSString stringWithFormat:@"%@+%@",reqType,url];
     return [self md5:name];
 }
 - (NSString *)baseCachePath {
@@ -497,7 +528,7 @@ static WBRequest *wb_request = nil;
 #pragma mark - setter
 - (void)setDefaultParameters:(NSDictionary *)defaultParameters {
     _defaultParameters = defaultParameters;
-    _wb_parameters= [NSMutableDictionary dictionaryWithDictionary:defaultParameters];
+    self.wb_parameters= [NSMutableDictionary dictionaryWithDictionary:defaultParameters];
 }
 
 #pragma mark - lazy
@@ -508,11 +539,11 @@ static WBRequest *wb_request = nil;
     return _wb_parameters;
 }
 
-- (NSMutableArray *)recorderArray {
-    if (!_recorderArray) {
-        _recorderArray = [NSMutableArray arrayWithCapacity:0];
+- (NSMutableArray *)wb_recorderArray {
+    if (!_wb_recorderArray) {
+        _wb_recorderArray = [NSMutableArray arrayWithCapacity:0];
     }
-    return _recorderArray;
+    return _wb_recorderArray;
 }
 
 
