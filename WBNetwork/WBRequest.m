@@ -43,11 +43,6 @@ static WBRequest *wb_request = nil;
 - (instancetype)init {
     self = [super init];
     if (self) {
-        _wb_AFManager = [AFHTTPSessionManager manager];
-        _wb_AFManager.requestSerializer = [AFHTTPRequestSerializer serializer];
-        _wb_AFManager.responseSerializer = [AFHTTPResponseSerializer serializer];
-        _wb_AFManager.requestSerializer.timeoutInterval = 10;
-        
         //默认属性值
         _wb_requestType = WBRequestPost;
         _wb_responseType = WBResponseDictionary;
@@ -55,6 +50,13 @@ static WBRequest *wb_request = nil;
         _cacheData = YES;
         _defaultParameters = @{};
         _wb_isShowHUD = NO;
+        _timeoutInterval = 10;
+        
+
+        _wb_AFManager = [AFHTTPSessionManager manager];
+        _wb_AFManager.requestSerializer = [AFHTTPRequestSerializer serializer];
+        _wb_AFManager.responseSerializer = [AFHTTPResponseSerializer serializer];
+        _wb_AFManager.requestSerializer.timeoutInterval = _timeoutInterval;
         
     }
     return self;
@@ -69,7 +71,12 @@ static WBRequest *wb_request = nil;
 }
 - (WBRequest *(^)(NSString *))url {
     return ^(NSString *url) {
-        self.wb_url = url;
+        
+        if ([url hasPrefix:@"https://"] || [url hasPrefix:@"http://"]) {
+            self.wb_url = url;
+        } else {
+            self.wb_url = [self constructUrl:url];
+        }
         return self;
     };
 }
@@ -382,6 +389,8 @@ static WBRequest *wb_request = nil;
 
 /**
  网络是否可用
+ 1. 状态栏不可见，此方法失效
+ 2. 模拟器测试，关掉电脑Wi-Fi，模拟器还是显示Wi-Fi，也是失效了
  */
 - (BOOL)isNetworkReachable {
     
@@ -410,7 +419,7 @@ static WBRequest *wb_request = nil;
         }
     }
     
-#ifdef DEBUG
+#if DEBUG
     switch (type) {
         case 1:
             WBLog(@"[网络：2G]");
@@ -438,7 +447,14 @@ static WBRequest *wb_request = nil;
     }
     
 }
-
+//拼接链接
+- (NSString *)constructUrl:(NSString *)url {
+    if (WBBaseUrl && WBBaseUrl.length>0 && ([WBBaseUrl hasPrefix:@"http://"] || [WBBaseUrl hasPrefix:@"https://"])) {
+        NSString *finalUrl = [WBBaseUrl stringByAppendingString:url];
+        return finalUrl;
+    }
+    return nil;
+}
 #pragma mark - cache
 /**
  缓存文件路径
@@ -529,6 +545,11 @@ static WBRequest *wb_request = nil;
 - (void)setDefaultParameters:(NSDictionary *)defaultParameters {
     _defaultParameters = defaultParameters;
     self.wb_parameters= [NSMutableDictionary dictionaryWithDictionary:defaultParameters];
+}
+
+- (void)setTimeoutInterval:(NSTimeInterval)timeoutInterval {
+    _timeoutInterval = timeoutInterval;
+    _wb_AFManager.requestSerializer.timeoutInterval = timeoutInterval;
 }
 
 #pragma mark - lazy

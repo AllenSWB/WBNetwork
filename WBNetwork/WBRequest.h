@@ -13,15 +13,25 @@
 
 
 
-#ifdef DEBUG
+#if DEBUG
+
 # define WBLog(fmt, ...) NSLog((@"[文件名:%s]\n" "[函数名:%s]\n" "[行号:%d] \n" fmt), __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__);
+#define WBBaseUrl self.baseUrlDebug
+
 #else
+
 # define WBLog(...);
+#define WBBaseUrl self.baseUrlRelease
+
 #endif
 
 
 #define WBREQUEST WBRequest.sharedWBRequest
 #define KEYWINDOW [UIApplication sharedApplication].keyWindow
+
+#define WBWeakObj(o) __weak typeof(o) o##Weak = o;
+#define WBStrongObj(o) __strong typeof(o) o##Strong = o;
+
 
 /**
  HTTP方法
@@ -73,7 +83,12 @@ typedef void(^WBConstructBody)(id<AFMultipartFormData> formData);
 @property (assign, nonatomic) BOOL cacheData;
 //默认参数 默认 @{}
 @property (strong, nonatomic) NSDictionary *defaultParameters;
-
+//请求超时时长 默认 10s
+@property (assign, nonatomic) NSTimeInterval timeoutInterval;
+//debug base url. base url 后如果需要的话，可以自己拼接 '/'
+@property (strong, nonatomic) NSString *baseUrlDebug;
+//release base url
+@property (strong, nonatomic) NSString *baseUrlRelease;
 #pragma mark - chain
 - (WBRequest *(^)(WBRequestType requestType))requestType;
 - (WBRequest *(^)(NSString *urlString))url;
