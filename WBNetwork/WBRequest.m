@@ -283,8 +283,13 @@ static WBRequest *wb_request = nil;
             return str;
         }
             break;
-        case WBResponseDictionary:
-            responseObject = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers error:nil];
+        case WBResponseDictionary:{
+            NSError *err;
+            responseObject = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingMutableContainers error:&err];
+            if (err) {
+                WBLog(@"\n=====================[解析Data出错:]=================\n%@\n=====================================",err.description);
+            }
+        }
             break;
         default:
             break;
