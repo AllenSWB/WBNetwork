@@ -8,10 +8,11 @@ iOS 网络请求库、基于AFN3、链式调用
 2. block 回调方式
 3. 集约式的请求方法，链式调用
 4. 快速请求同一个 API 时，可以通过设置 minRequestInterval 防止这种情况发生。如果两次请求时间间隔小于 minRequestInterval ，直接从缓存文件拿取数据。(如果对数据即时性要求较高，设置 minRequestInterval 为 0 关闭此功能)
-5. 可以设置请求的默认参数。
-6. 两个baseURL，一个测试环境，一个正式环境。
-7. 简单数据处理：可以选择交付给业务层三种数据类型: NSDictionary(默认)、NSString、NSData
-8. Loading HUD 是否显示
+5. 可以同时发起多个请求，全部请求完成后又一个block回调，传回来一个Dictionary。字典key是请求的链接，value是成功返回的数据data或者错误error
+6. 可以设置请求的默认参数。
+7. 两个baseURL，一个测试环境，一个正式环境。
+8. 简单数据处理：可以选择交付给业务层三种数据类型: NSDictionary(默认)、NSString、NSData
+9. Loading HUD 是否显示
 
 ####使用示例
 
