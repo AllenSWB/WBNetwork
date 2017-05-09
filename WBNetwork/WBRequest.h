@@ -122,19 +122,3 @@ typedef void(^WBBatchRequestDone)(NSDictionary *batchDoneDictionary);
 
 @end
 
-
-#pragma mark - Class请求记录器
-/**
- 请求记录器
- */
-@interface WBRequestRecorder : NSObject
-@property (strong, nonatomic) NSURLSessionDataTask *rr_task;
-@property (assign, nonatomic) WBRequestType rr_requestType;
-@property (strong, nonatomic) NSString *rr_url;
-@property (strong, nonatomic) NSDictionary *rr_parameters;
-@property (copy, nonatomic) WBSuccess rr_success;
-@property (copy, nonatomic) WBFailure rr_failure;
-@property (strong, nonatomic) NSString *rr_cachePath;
-//@property (copy, nonatomic) WBProgress rr_progress;
-
-@end

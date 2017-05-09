@@ -10,6 +10,27 @@
 #import <CommonCrypto/CommonDigest.h>
 #import <objc/runtime.h>
 
+
+/**
+ 请求记录器
+ */
+@interface WBRequestRecorder : NSObject
+@property (strong, nonatomic) NSURLSessionDataTask *rr_task;
+@property (assign, nonatomic) WBRequestType rr_requestType;
+@property (strong, nonatomic) NSString *rr_url;
+@property (strong, nonatomic) NSDictionary *rr_parameters;
+@property (copy, nonatomic) WBSuccess rr_success;
+@property (copy, nonatomic) WBFailure rr_failure;
+@property (strong, nonatomic) NSString *rr_cachePath;
+//@property (copy, nonatomic) WBProgress rr_progress;
+
+@end
+
+@implementation WBRequestRecorder
+
+@end
+
+
 @interface WBRequest ()
 
 @property (strong, nonatomic) AFHTTPSessionManager *wb_AFManager;
@@ -27,7 +48,7 @@
 @property (assign, nonatomic) WBRequestType wb_requestType;
 @property (assign, nonatomic) WBResponseType wb_responseType;
 @property (strong, nonatomic) NSString *wb_url;
-@property (strong, nonatomic) NSMutableDictionary *wb_parameters;
+@property (strong, nonatomic) NSDictionary *wb_parameters;
 @property (copy, nonatomic) WBSuccess wb_success;
 @property (copy, nonatomic) WBFailure wb_failure;
 @property (copy, nonatomic) WBProgress wb_progress;
@@ -87,15 +108,6 @@ static WBRequest *wb_request = nil;
 }
 - (WBRequest *(^)(NSDictionary *))parameters {
     return ^(NSDictionary *para) {
-        
-//        if (![_defaultParameters isEqual:@{}]) {
-//            //有默认参数
-//            self.wb_parameters = [NSMutableDictionary dictionaryWithDictionary:_defaultParameters];
-//        }
-//        //有传参进来
-//        if (![para isEqual:@{}] && para) {
-//            [self.wb_parameters addEntriesFromDictionary:para];
-//        }
         self.wb_parameters = [self finalParameter:para];
         return self;
     };
@@ -168,9 +180,9 @@ static WBRequest *wb_request = nil;
         
         //恢复默认参数
         if (![_defaultParameters isEqual:@{}]) {//有默认参数
-            self.wb_parameters = [NSMutableDictionary dictionaryWithDictionary:_defaultParameters];
+            self.wb_parameters = _defaultParameters;
         } else {
-            self.wb_parameters = [NSMutableDictionary dictionaryWithCapacity:0];
+            self.wb_parameters = nil;
         }
        
         return self;
@@ -453,6 +465,11 @@ static WBRequest *wb_request = nil;
 }
 
 - (void)batchDoneActionRecorder:(WBRequestRecorder *)recorder Obj:(id)obj {
+    if (!recorder) {
+        WBLog(@"recorder 取不到!!!!");
+        return;
+    }
+    WBLog(@"recorders: %@",self.wb_batchRecorderArray);
     [self.wb_batchDoneRequestDic setValue:obj forKey:recorder.rr_url];
     
     if (self.wb_batchDoneRequestDic.allKeys.count == self.wb_batchRecorderArray.count && self.batchRequestDone) {
@@ -715,7 +732,7 @@ static WBRequest *wb_request = nil;
 #pragma mark - setter
 - (void)setDefaultParameters:(NSDictionary *)defaultParameters {
     _defaultParameters = defaultParameters;
-    self.wb_parameters= [NSMutableDictionary dictionaryWithDictionary:defaultParameters];
+    self.wb_parameters= defaultParameters;
 }
 
 - (void)setTimeoutInterval:(NSTimeInterval)timeoutInterval {
@@ -724,9 +741,9 @@ static WBRequest *wb_request = nil;
 }
 
 #pragma mark - lazy
-- (NSMutableDictionary *)wb_parameters {
+- (NSDictionary *)wb_parameters {
     if (!_wb_parameters) {
-        _wb_parameters = [NSMutableDictionary dictionaryWithCapacity:0];
+        _wb_parameters = [[NSDictionary alloc] init];
     }
     return _wb_parameters;
 }
@@ -774,8 +791,4 @@ static WBRequest *wb_request = nil;
 
 @end
 
-
-@implementation WBRequestRecorder
-
-@end
 
