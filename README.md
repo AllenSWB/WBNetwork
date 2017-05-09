@@ -38,6 +38,23 @@ iOS 网络请求库、基于AFN3、链式调用
 	        WBLog(@"登录失败");
 	    }).showTextHUD(YES, @"正在登录...").startRequest();
 
+	    /**
+	     *  同时发起多个请求
+	     */
+	    WBREQUEST.batchRequestTypes(@[WBPOST,WBPOST,WBPOST]).batchUrls(@[url0,url1,url2]).batchParameters(@[@{},@{},@{}]).batchRequestDone(^(NSDictionary *dic) {
+	    
+	        WBLog(@"======================\ndic is %@\n================================",dic);
+	        
+	        for (id obj in dic.allValues) {
+	            if ([obj isKindOfClass:[NSError class]]) {
+	                WBLog(@"obj 出现了\n有错!");
+	            } else {
+	                WBLog(@"obj 出现了\n数据:%@",obj);
+	            }
+	        }
+	        
+	    }).startBatchRequest();
+
 ####简书地址
 [悟空没空](http://www.jianshu.com/p/1329d863ee5d)
 
