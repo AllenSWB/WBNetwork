@@ -33,6 +33,9 @@
 #define WBStrongObj(o) __strong typeof(o) o##Strong = o;
 
 
+#define WBPOST @"POST"
+#define WBGET @"GET"
+
 /**
  HTTP方法
  
@@ -68,6 +71,13 @@ typedef void(^WBProgress)(NSProgress *progress);
 //上传文件拼接数据
 typedef void(^WBConstructBody)(id<AFMultipartFormData> formData);
 
+/**
+ batch 请求完成回调
+
+ @param batchDoneDictionary 请求完成返回数据 key是url地址，value是数据data或者错误error
+ */
+typedef void(^WBBatchRequestDone)(NSDictionary *batchDoneDictionary);
+
 
 #pragma mark - Class请求
 /**
@@ -100,7 +110,15 @@ typedef void(^WBConstructBody)(id<AFMultipartFormData> formData);
 - (WBRequest *(^)(BOOL isShowHUD,NSString *text))showTextHUD;
 - (WBRequest *(^)())startRequest;//发起请求
 
+//上传文件
 - (WBRequest *(^)(WBConstructBody constructBody))constructBody;
+
+//多个网络请求同时发送
+- (WBRequest *(^)(NSArray *batchRequestTypes))batchRequestTypes;//POST GET
+- (WBRequest *(^)(NSArray <NSString *>*batchUrls))batchUrls;
+- (WBRequest *(^)(NSArray <NSDictionary *>*batchParameters))batchParameters;
+- (WBRequest *(^)(WBBatchRequestDone batchDone))batchRequestDone;
+- (WBRequest *(^)())startBatchRequest;//发起请求
 
 @end
 
@@ -111,6 +129,7 @@ typedef void(^WBConstructBody)(id<AFMultipartFormData> formData);
  */
 @interface WBRequestRecorder : NSObject
 @property (strong, nonatomic) NSURLSessionDataTask *rr_task;
+@property (assign, nonatomic) WBRequestType rr_requestType;
 @property (strong, nonatomic) NSString *rr_url;
 @property (strong, nonatomic) NSDictionary *rr_parameters;
 @property (copy, nonatomic) WBSuccess rr_success;

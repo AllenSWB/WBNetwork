@@ -14,6 +14,16 @@
 
 @property (strong, nonatomic) AFHTTPSessionManager *wb_AFManager;
 
+//
+@property (strong, nonatomic) NSArray *wb_batchRequestTypes;
+@property (strong, nonatomic) NSArray *wb_batchUrls;
+@property (strong, nonatomic) NSArray *wb_batchParamters;
+@property (copy, nonatomic) WBBatchRequestDone wb_batchRequestDone;
+@property (strong, nonatomic) NSMutableArray *wb_batchRecorderArray;
+//完成请求之后的{@"url":@"data"} {@"url",@"error"}
+@property (strong, nonatomic) NSMutableDictionary *wb_batchDoneRequestDic;
+
+//
 @property (assign, nonatomic) WBRequestType wb_requestType;
 @property (assign, nonatomic) WBResponseType wb_responseType;
 @property (strong, nonatomic) NSString *wb_url;
@@ -71,26 +81,22 @@ static WBRequest *wb_request = nil;
 }
 - (WBRequest *(^)(NSString *))url {
     return ^(NSString *url) {
-        
-        if ([url hasPrefix:@"https://"] || [url hasPrefix:@"http://"]) {
-            self.wb_url = url;
-        } else {
-            self.wb_url = [self constructUrl:url];
-        }
+        self.wb_url = [self finalUrl:url];
         return self;
     };
 }
 - (WBRequest *(^)(NSDictionary *))parameters {
     return ^(NSDictionary *para) {
         
-        if (![_defaultParameters isEqual:@{}]) {
-            //有默认参数
-            self.wb_parameters = [NSMutableDictionary dictionaryWithDictionary:_defaultParameters];
-        }
-        //有传参进来
-        if (![para isEqual:@{}] && para) {
-            [self.wb_parameters addEntriesFromDictionary:para];
-        }
+//        if (![_defaultParameters isEqual:@{}]) {
+//            //有默认参数
+//            self.wb_parameters = [NSMutableDictionary dictionaryWithDictionary:_defaultParameters];
+//        }
+//        //有传参进来
+//        if (![para isEqual:@{}] && para) {
+//            [self.wb_parameters addEntriesFromDictionary:para];
+//        }
+        self.wb_parameters = [self finalParameter:para];
         return self;
     };
 }
@@ -130,6 +136,7 @@ static WBRequest *wb_request = nil;
         
         //创建recorder
         WBRequestRecorder *recorder = [[WBRequestRecorder alloc] init];
+        recorder.rr_requestType = self.wb_requestType;
         recorder.rr_url = self.wb_url;
         recorder.rr_parameters = self.wb_parameters;
         NSString *cachePath = [self pathForCache:recorder.rr_url];
@@ -179,6 +186,82 @@ static WBRequest *wb_request = nil;
     };
 }
 
+// batch request
+- (WBRequest *(^)(NSArray *))batchRequestTypes {
+    return ^(NSArray *types) {
+        _wb_batchRequestTypes = types;
+        return self;
+    };
+}
+- (WBRequest *(^)(NSArray<NSString *> *))batchUrls {
+    return ^(NSArray<NSString *> *urls) {
+        NSMutableArray *tempArr = [NSMutableArray arrayWithCapacity:0];
+        for (NSString *url in urls) {
+            [tempArr addObject:[self finalUrl:url]];
+        }
+        _wb_batchUrls = tempArr;
+        return self;
+    };
+}
+- (WBRequest *(^)(NSArray<NSDictionary *> *))batchParameters {
+    return ^(NSArray <NSDictionary *> *paramters) {
+        NSMutableArray *tempArr = [NSMutableArray arrayWithCapacity:0];
+        for (NSDictionary *dic in paramters) {
+            [tempArr addObject:[self finalParameter:dic]];
+        }
+        _wb_batchParamters = tempArr;
+        return self;
+    };
+}
+
+- (WBRequest *(^)(WBBatchRequestDone))batchRequestDone {
+    return ^(WBBatchRequestDone batchDone) {
+        _wb_batchRequestDone = batchDone;
+        return self;
+    };
+}
+
+- (WBRequest *(^)())startBatchRequest {
+    return ^() {
+        
+        if (_wb_batchUrls.count == _wb_batchParamters.count && _wb_batchParamters.count != 0) {
+            
+            NSInteger requestCount = _wb_batchUrls.count;
+            [self.wb_batchRecorderArray removeAllObjects];//清空
+            
+            for (NSInteger i = 0; i < requestCount; i++) {
+              //创建recorder
+                WBRequestRecorder *recorder = [[WBRequestRecorder alloc] init];
+                NSString *typeStr = self.wb_batchRequestTypes[i];
+                if ([typeStr isEqualToString:WBPOST]) {
+                    recorder.rr_requestType = WBRequestPost;
+                } else if ([typeStr isEqualToString:WBGET]) {
+                    recorder.rr_requestType = WBRequestGet;
+                }
+                recorder.rr_url = self.wb_batchUrls[i];
+                recorder.rr_parameters = self.wb_batchParamters[i];
+                NSString *cachePath = [self pathForCache:recorder.rr_url];
+                recorder.rr_cachePath = cachePath;
+                [self.wb_batchRecorderArray addObject:recorder];
+            }
+            
+            //不去管缓存了
+            
+            //请求
+            if ([self isNetworkReachable]) {
+                for (WBRequestRecorder *recorder in self.wb_batchRecorderArray) {
+                    //开始请求
+                    [self startRequestAPIWithRecorder:recorder];
+                }
+            } else {
+                WBLog(@"没网啊...")
+            }
+        }
+
+        return self;
+    };
+}
+
 #pragma mark - network
 - (void)startRequestAPIWithRecorder:(WBRequestRecorder *)recorder {
     
@@ -188,7 +271,7 @@ static WBRequest *wb_request = nil;
     
     NSURLSessionDataTask *task;
     
-    switch (_wb_requestType) {
+    switch (recorder.rr_requestType) {//_wb_requestType
         case WBRequestPost:
         {
             task = [_wb_AFManager POST:recorder.rr_url parameters:recorder.rr_parameters progress:^(NSProgress * _Nonnull uploadProgress) {
@@ -316,13 +399,22 @@ static WBRequest *wb_request = nil;
     
     
     WBRequestRecorder *recorder = [self getRecorderfromTask:task];
-    
-    if (recorder && recorder.rr_success) {
-        recorder.rr_success(task, data);
-        
-        WBLog(@"===================================请求成功===================\n[DataTask:%@]\n[URL:]%@\n[数据:]%@\n==========================================\n",task,recorder.rr_url,data);
+
+    if (self.wb_batchRecorderArray.count > 0) {
+        //batch 请求
+        [self batchDoneActionRecorder:recorder Obj:data];
+    } else {
+        //正常的请求
+        if (recorder && recorder.rr_success) {
+            recorder.rr_success(task, data);
+            
+            WBLog(@"===================================请求成功===================\n[DataTask:%@]\n[URL:]%@\n[数据:]%@\n==========================================\n",task,recorder.rr_url,data);
+        }
+        [self afterRequestThing:recorder];
     }
-    [self afterRequestThing:recorder];
+    
+    
+    
     
 }
 
@@ -335,32 +427,62 @@ static WBRequest *wb_request = nil;
     }
     
     WBRequestRecorder *recorder = [self getRecorderfromTask:task];
-    if (recorder && recorder.rr_failure) {
-        recorder.rr_failure(task, error);
-        WBLog(@"===================================请求失败===================\n[DataTask:%@]\n[URL:]%@\n[失败原因:]%@\n==========================================\n",task,recorder.rr_url,error.description);
-        
-        //尝试去拿缓存
-        id data = [NSKeyedUnarchiver unarchiveObjectWithFile:[self pathForCache:recorder.rr_url]];
-        if (data) {
-            if (recorder.rr_success) {
-                WBLog(@"从缓存拿数据成功");
-                recorder.rr_success(nil,data);
+    
+    if (self.wb_batchRecorderArray.count > 0) {
+        //batch 请求
+        [self batchDoneActionRecorder:recorder Obj:error];
+    } else {
+        //正常请求
+        if (recorder && recorder.rr_failure) {
+            recorder.rr_failure(task, error);
+            WBLog(@"===================================请求失败===================\n[DataTask:%@]\n[URL:]%@\n[失败原因:]%@\n==========================================\n",task,recorder.rr_url,error.description);
+            
+            //尝试去拿缓存
+            id data = [NSKeyedUnarchiver unarchiveObjectWithFile:[self pathForCache:recorder.rr_url]];
+            if (data) {
+                if (recorder.rr_success) {
+                    WBLog(@"从缓存拿数据成功");
+                    recorder.rr_success(nil,data);
+                }
             }
         }
+        [self afterRequestThing:recorder];
+        
     }
-    [self afterRequestThing:recorder];
+    
+}
+
+- (void)batchDoneActionRecorder:(WBRequestRecorder *)recorder Obj:(id)obj {
+    [self.wb_batchDoneRequestDic setValue:obj forKey:recorder.rr_url];
+    
+    if (self.wb_batchDoneRequestDic.allKeys.count == self.wb_batchRecorderArray.count && self.batchRequestDone) {
+        self.wb_batchRequestDone(self.wb_batchDoneRequestDic);
+        [self afterBatchRequestThing];
+    }
 }
 
 /**
- 根据task从recorderArray获取recorder
+ 根据task获取recorder
  */
 - (WBRequestRecorder *)getRecorderfromTask:(NSURLSessionDataTask *)task {
     
-    for (WBRequestRecorder *recorder in self.wb_recorderArray) {
-        if ([recorder.rr_task isEqual:task]) {
-            return recorder;
+    if (self.wb_batchRecorderArray.count > 0) {
+        //batch 请求 从wb_batchRecorderArray 查找
+        for (WBRequestRecorder *recorder in self.wb_batchRecorderArray) {
+            if ([recorder.rr_task isEqual:task]) {
+                return recorder;
+            }
         }
+    } else {
+        //正常请求从 wb_recorderArray 查找
+        for (WBRequestRecorder *recorder in self.wb_recorderArray) {
+            if ([recorder.rr_task isEqual:task]) {
+                return recorder;
+            }
+        }
+        
     }
+    
     return nil;
 }
 
@@ -373,6 +495,31 @@ static WBRequest *wb_request = nil;
 - (void)afterRequestThing:(WBRequestRecorder *)recorder {
     [self nilParameters];
     [self deleteRecorder:recorder];
+}
+
+
+/**
+ batch 请求完成之后的事情
+ */
+- (void)afterBatchRequestThing {
+    if (self.wb_batchDoneRequestDic) {
+        self.wb_batchDoneRequestDic = nil;
+    }
+    if (self.wb_batchRequestDone) {
+        self.wb_batchRequestDone = nil;
+    }
+    if (self.wb_batchRecorderArray) {
+        self.wb_batchRecorderArray = nil;
+    }
+    if (self.wb_batchUrls) {
+        self.wb_batchUrls = nil;
+    }
+    if (self.wb_batchParamters) {
+        self.wb_batchParamters = nil;
+    }
+    if (self.wb_batchRequestTypes) {
+        self.wb_batchRequestTypes = nil;
+    }
 }
 
 /**
@@ -451,6 +598,25 @@ static WBRequest *wb_request = nil;
         return NO;
     }
     
+}
+- (NSString *)finalUrl:(NSString *)str {
+    if ([str hasPrefix:@"https://"] || [str hasPrefix:@"http://"]) {
+        return str;
+    } else {
+        return [self constructUrl:str];
+    }
+}
+- (NSDictionary *)finalParameter:(NSDictionary *)parameter {
+    NSMutableDictionary *tempDic = [NSMutableDictionary dictionaryWithCapacity:0];
+    if (![_defaultParameters isEqual:@{}]) {
+        //有默认参数
+        tempDic = [NSMutableDictionary dictionaryWithDictionary:_defaultParameters];
+    }
+    //有传参进来
+    if (![parameter isEqual:@{}] && parameter) {
+        [tempDic addEntriesFromDictionary:parameter];
+    }
+    return tempDic;
 }
 //拼接链接
 - (NSString *)constructUrl:(NSString *)url {
@@ -571,7 +737,18 @@ static WBRequest *wb_request = nil;
     }
     return _wb_recorderArray;
 }
-
+- (NSMutableArray *)wb_batchRecorderArray {
+    if (!_wb_batchRecorderArray) {
+        _wb_batchRecorderArray = [NSMutableArray arrayWithCapacity:0];
+    }
+    return _wb_batchRecorderArray;
+}
+- (NSMutableDictionary *)wb_batchDoneRequestDic {
+    if (!_wb_batchDoneRequestDic) {
+        _wb_batchDoneRequestDic = [NSMutableDictionary dictionaryWithCapacity:0];
+    }
+    return _wb_batchDoneRequestDic;
+}
 
 
 #pragma mark - other
