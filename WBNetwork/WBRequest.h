@@ -9,7 +9,6 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <AFNetworking.h>
-#import <MBProgressHUD/MBProgressHUD.h>
 
 
 
@@ -78,6 +77,8 @@ typedef void(^WBConstructBody)(id<AFMultipartFormData> formData);
  */
 typedef void(^WBBatchRequestDone)(NSDictionary *batchDoneDictionary);
 
+@protocol WBRequestPlugIn;
+@class WBRequestPlugInBase;
 
 #pragma mark - Class请求
 /**
@@ -106,8 +107,6 @@ typedef void(^WBBatchRequestDone)(NSDictionary *batchDoneDictionary);
 - (WBRequest *(^)(WBSuccess success))success;
 - (WBRequest *(^)(WBFailure failure))failure;
 - (WBRequest *(^)(WBProgress progress))progress;
-- (WBRequest *(^)(BOOL isShowHUD))showHUD;
-- (WBRequest *(^)(BOOL isShowHUD,NSString *text))showTextHUD;
 - (WBRequest *(^)())startRequest;//发起请求
 
 //上传文件
@@ -119,6 +118,54 @@ typedef void(^WBBatchRequestDone)(NSDictionary *batchDoneDictionary);
 - (WBRequest *(^)(NSArray <NSDictionary *>*batchParameters))batchParameters;
 - (WBRequest *(^)(WBBatchRequestDone batchDone))batchRequestDone;
 - (WBRequest *(^)())startBatchRequest;//发起请求
+
+//清空缓存
+- (void)clearCacheFile;
+
+//插件
+- (void)wb_addPlugIn:(WBRequestPlugInBase *)plugIn;
+//根据identifier获取插件
+- (WBRequestPlugInBase *)plugInWithIdentifier:(NSString *)identifier;
+
+@end
+
+
+/**
+ 请求记录器
+ */
+@interface WBRequestRecorder : NSObject
+
+@property (strong, nonatomic) NSURLSessionDataTask *rr_task;
+@property (assign, nonatomic) WBRequestType rr_requestType;
+@property (strong, nonatomic) NSString *rr_url;
+@property (strong, nonatomic) NSDictionary *rr_parameters;
+@property (copy, nonatomic) WBSuccess rr_success;
+@property (copy, nonatomic) WBFailure rr_failure;
+@property (strong, nonatomic) NSString *rr_cachePath;
+
+@end
+
+
+/**
+ 插件协议
+ */
+@protocol WBRequestPlugIn <NSObject>
+
+@optional
+- (void)wb_requestWillStart:(WBRequestRecorder *)recorder;
+- (void)wb_requestWillComplete:(WBRequestRecorder *)recorder;
+- (void)wb_requestDidComplete:(WBRequestRecorder *)recorder;
+
+@end
+
+/**
+ 插件基类
+ */
+@interface WBRequestPlugInBase : NSObject<WBRequestPlugIn>
+
+@property (strong, nonatomic) NSString *plugInIdentifier;
+//插件是否工作    Default NO 工作 ／ YES 不工作
+@property (assign, nonatomic) BOOL isPlugInFree;
 
 @end
 
