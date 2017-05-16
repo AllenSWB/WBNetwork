@@ -11,24 +11,6 @@
 #import <objc/runtime.h>
 
 
-/**
- 请求记录器
- */
-@interface WBRequestRecorder : NSObject
-@property (strong, nonatomic) NSURLSessionDataTask *rr_task;
-@property (assign, nonatomic) WBRequestType rr_requestType;
-@property (strong, nonatomic) NSString *rr_url;
-@property (strong, nonatomic) NSDictionary *rr_parameters;
-@property (copy, nonatomic) WBSuccess rr_success;
-@property (copy, nonatomic) WBFailure rr_failure;
-@property (strong, nonatomic) NSString *rr_cachePath;
-//@property (copy, nonatomic) WBProgress rr_progress;
-
-@end
-
-@implementation WBRequestRecorder
-
-@end
 
 
 @interface WBRequest ()
@@ -55,8 +37,9 @@
 @property (copy, nonatomic) WBConstructBody wb_constructBody;
 @property (assign, nonatomic) BOOL wb_isShowHUD;//是否显示HUD 默认 NO
 @property (strong, nonatomic) NSString *wb_loadingHudText;//加载hud文字
+@property (strong, nonatomic) UIView *wb_inView;//
 @property (strong, nonatomic) NSMutableArray *wb_recorderArray;//请求记录器数组
-
+@property (strong, nonatomic) NSMutableArray *wb_plugInArray;
 @end
 
 static WBRequest *wb_request = nil;
@@ -136,6 +119,13 @@ static WBRequest *wb_request = nil;
         return self;
     };
 }
+- (WBRequest *(^)(BOOL, UIView *))showHUDInView {
+    return ^(BOOL isShow, UIView *inView) {
+        _wb_isShowHUD = isShow;
+        _wb_inView = inView;
+        return self;
+    };
+}
 - (WBRequest *(^)(BOOL, NSString *))showTextHUD {
     return ^(BOOL isShow,NSString *text) {
         _wb_isShowHUD = isShow;
@@ -143,6 +133,7 @@ static WBRequest *wb_request = nil;
         return self;
     };
 }
+
 - (WBRequest *(^)())startRequest {
     return ^() {
         
@@ -151,22 +142,16 @@ static WBRequest *wb_request = nil;
         recorder.rr_requestType = self.wb_requestType;
         recorder.rr_url = self.wb_url;
         recorder.rr_parameters = self.wb_parameters;
-        NSString *cachePath = [self pathForCache:recorder.rr_url];
+        NSString *cachePath = [self pathForCache:recorder];
         recorder.rr_cachePath = cachePath;
         [self.wb_recorderArray addObject:recorder];
         
         
         if (_minRequestInterval > 0 && [self timerIntervalOfCache:cachePath] < _minRequestInterval) {
             //去拿缓存
-            id data = [NSKeyedUnarchiver unarchiveObjectWithFile:cachePath];
-            if (data) {
-                if (_wb_success) {
-                    WBLog(@"两次请求时间间隔太短，直接从缓存拿数据");
-                    _wb_success(nil,data);
-                    //没有走请求
-                    [self afterRequestThing:recorder];
-                }
-            }
+            WBLog(@"两次请求时间间隔太短，直接从缓存拿数据");
+            [self goGetcacheData:cachePath recorder:recorder];
+            
         } else {
             //默认回调
             [self defaultCallBack];
@@ -174,7 +159,9 @@ static WBRequest *wb_request = nil;
                 //开始请求
                 [self startRequestAPIWithRecorder:recorder];
             } else {
-                WBLog(@"没网啊...")
+                WBLog(@"没网啊...直接从缓存拿数据")
+                [self goGetcacheData:cachePath recorder:recorder];
+                
             }
         }
         
@@ -252,7 +239,7 @@ static WBRequest *wb_request = nil;
                 }
                 recorder.rr_url = self.wb_batchUrls[i];
                 recorder.rr_parameters = self.wb_batchParamters[i];
-                NSString *cachePath = [self pathForCache:recorder.rr_url];
+                NSString *cachePath = [self pathForCache:recorder];
                 recorder.rr_cachePath = cachePath;
                 [self.wb_batchRecorderArray addObject:recorder];
             }
@@ -267,6 +254,7 @@ static WBRequest *wb_request = nil;
                 }
             } else {
                 WBLog(@"没网啊...")
+                [self afterBatchRequestThing];
             }
         }
 
@@ -344,6 +332,14 @@ static WBRequest *wb_request = nil;
     recorder.rr_success = _wb_success;
     recorder.rr_failure = _wb_failure;
     recorder.rr_task = task;
+
+
+    //插件
+    for (WBRequestPlugInBase *plugIn in self.wb_plugInArray) {
+        if (!plugIn.isPlugInFree && [plugIn respondsToSelector:@selector(wb_requestWillStart:)]) {
+            [plugIn wb_requestWillStart:recorder];
+        }
+    }
 }
 
 - (void)defaultCallBack {
@@ -396,6 +392,7 @@ static WBRequest *wb_request = nil;
  请求成功回调
  */
 - (void)requestSuccessComplete:(NSURLSessionDataTask *)task obj:(id)responseObject cachePath:(NSString *)cachePath {
+    
     id data = [self responseObj:responseObject];
     if (_wb_isShowHUD) {
         [self hideLoadingHUD];
@@ -403,7 +400,7 @@ static WBRequest *wb_request = nil;
     if (_cacheData) {
         BOOL cache = [NSKeyedArchiver archiveRootObject:data toFile:cachePath];
         if (cache) {
-            WBLog(@"\n=====================================\n[缓存成功, 缓存路径:]\n%@\n=====================================\n",cachePath);
+//            WBLog(@"\n=====================================\n[缓存成功, 缓存路径:]\n%@\n=====================================\n",cachePath);
         } else {
             WBLog(@"缓存失败");
         }
@@ -412,6 +409,13 @@ static WBRequest *wb_request = nil;
     
     WBRequestRecorder *recorder = [self getRecorderfromTask:task];
 
+    for (WBRequestPlugInBase *plugIn in self.wb_plugInArray) {
+        if (!plugIn.isPlugInFree && [plugIn respondsToSelector:@selector(wb_requestWillComplete:)]) {
+            [plugIn wb_requestWillComplete:recorder];
+        }
+    }
+    
+    
     if (self.wb_batchRecorderArray.count > 0) {
         //batch 请求
         [self batchDoneActionRecorder:recorder Obj:data];
@@ -440,6 +444,12 @@ static WBRequest *wb_request = nil;
     
     WBRequestRecorder *recorder = [self getRecorderfromTask:task];
     
+    for (WBRequestPlugInBase *plugIn in self.wb_plugInArray) {
+        if (!plugIn.isPlugInFree && [plugIn respondsToSelector:@selector(wb_requestWillComplete:)]) {
+            [plugIn wb_requestWillComplete:recorder];
+        }
+    }
+    
     if (self.wb_batchRecorderArray.count > 0) {
         //batch 请求
         [self batchDoneActionRecorder:recorder Obj:error];
@@ -450,7 +460,7 @@ static WBRequest *wb_request = nil;
             WBLog(@"===================================请求失败===================\n[DataTask:%@]\n[URL:]%@\n[失败原因:]%@\n==========================================\n",task,recorder.rr_url,error.description);
             
             //尝试去拿缓存
-            id data = [NSKeyedUnarchiver unarchiveObjectWithFile:[self pathForCache:recorder.rr_url]];
+            id data = [NSKeyedUnarchiver unarchiveObjectWithFile:[self pathForCache:recorder]];
             if (data) {
                 if (recorder.rr_success) {
                     WBLog(@"从缓存拿数据成功");
@@ -511,6 +521,14 @@ static WBRequest *wb_request = nil;
  */
 - (void)afterRequestThing:(WBRequestRecorder *)recorder {
     [self nilParameters];
+    
+    for (WBRequestPlugInBase *plugIn in self.wb_plugInArray) {
+        if (!plugIn.isPlugInFree && [plugIn respondsToSelector:@selector(wb_requestDidComplete:)]) {
+            [plugIn wb_requestDidComplete:recorder];
+        }
+    }
+    
+    
     [self deleteRecorder:recorder];
 }
 
@@ -526,6 +544,14 @@ static WBRequest *wb_request = nil;
         self.wb_batchRequestDone = nil;
     }
     if (self.wb_batchRecorderArray) {
+        for (WBRequestRecorder *recorder in self.wb_batchRecorderArray) {
+            for (WBRequestPlugInBase *plugIn in self.wb_plugInArray) {
+                if (!plugIn.isPlugInFree && [plugIn respondsToSelector:@selector(wb_requestDidComplete:)]) {
+                    
+                    [plugIn wb_requestDidComplete:recorder];
+                }
+            }
+        }
         self.wb_batchRecorderArray = nil;
     }
     if (self.wb_batchUrls) {
@@ -538,7 +564,18 @@ static WBRequest *wb_request = nil;
         self.wb_batchRequestTypes = nil;
     }
 }
-
+//拿缓存
+- (void)goGetcacheData:(NSString *)cachePath recorder:(WBRequestRecorder *)recorder {
+    //去拿缓存
+    id data = [NSKeyedUnarchiver unarchiveObjectWithFile:cachePath];
+    if (data) {
+        if (_wb_success) {
+            _wb_success(nil,data);
+            //没有走请求
+            [self afterRequestThing:recorder];
+        }
+    }
+}
 /**
  删除记录器
   */
@@ -647,22 +684,23 @@ static WBRequest *wb_request = nil;
 /**
  缓存文件路径
  */
-- (NSString *)pathForCache:(NSString *)url {
+- (NSString *)pathForCache:(WBRequestRecorder *)recorder {
     NSString *basePath = [self baseCachePath];
     if (basePath.length == 0) {
         return @"";
     } else {
-        return [basePath stringByAppendingPathComponent:[self nameForCache:url]];
+        return [basePath stringByAppendingPathComponent:[self nameForCache:recorder]];
     }
 }
 
 /**
  缓存文件名 由'请求方式+URL'拼接而成
  */
-- (NSString *)nameForCache:(NSString *)url {
+- (NSString *)nameForCache:(WBRequestRecorder *)recorder {
+    NSString *url = recorder.rr_url;
     // requestType + URL
     NSString *reqType;
-    switch (_wb_requestType) {
+    switch (recorder.rr_requestType) {
         case WBRequestPost:
             reqType = @"POST";
             break;
@@ -672,7 +710,7 @@ static WBRequest *wb_request = nil;
         default:
             break;
     }
-    NSString *name = [NSString stringWithFormat:@"%@+%@",reqType,url];
+    NSString *name = [NSString stringWithFormat:@"%@+%@+%@",reqType,url,recorder.rr_parameters];
     return [self md5:name];
 }
 - (NSString *)baseCachePath {
@@ -687,7 +725,6 @@ static WBRequest *wb_request = nil;
         BOOL createDoc = [fileManager createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:nil];
         
         if (createDoc) {
-            WBLog(@"创建base路径成功");
             return path;
         } else {
             return @"";//失败
@@ -706,9 +743,41 @@ static WBRequest *wb_request = nil;
     } else {
         NSDate *modificationDate = attributes[NSFileModificationDate];
         NSTimeInterval time = [[NSDate date] timeIntervalSinceDate:modificationDate];
-        NSLog(@"time is %g",time);
+        WBLog(@"time is %g",time);
         return time;
     }
+}
+
+- (void)clearCacheFile {
+    NSString *pathOfLibrary = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+    NSString *path = [pathOfLibrary stringByAppendingPathComponent:@"WBNetworkCache"];
+
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    
+    NSArray *contents = [fileManager contentsOfDirectoryAtPath:path error:NULL];
+    NSEnumerator *e = [contents objectEnumerator];
+    NSString *filename;
+    while ((filename = [e nextObject])) {
+
+        [fileManager removeItemAtPath:[path stringByAppendingPathComponent:filename] error:NULL];
+    }
+
+}
+
+#pragma mark - pulg-in
+- (void)wb_addPlugIn:(WBRequestPlugInBase *)plugIn {
+    [self.wb_plugInArray addObject:plugIn];
+
+}
+- (WBRequestPlugInBase *)plugInWithIdentifier:(NSString *)identifier {
+    if (self.wb_plugInArray.count > 0) {
+        for (WBRequestPlugInBase *plugIn in self.wb_plugInArray) {
+            if ([plugIn.plugInIdentifier isEqualToString:identifier]) {
+                return plugIn;
+            }
+        }
+    }
+    return nil;
 }
 #pragma mark - hud
 - (void)showLoadingHUD {
@@ -717,6 +786,8 @@ static WBRequest *wb_request = nil;
             MBProgressHUD *hud = [MBProgressHUD showHUDAddedTo:KEYWINDOW animated:YES];
             [hud removeFromSuperViewOnHide];
             hud.labelText = _wb_loadingHudText;
+        } else if (_wb_inView) {
+            [MBProgressHUD showHUDAddedTo:_wb_inView animated:YES];
         } else {
             [MBProgressHUD showHUDAddedTo:KEYWINDOW animated:YES];
         }
@@ -726,6 +797,10 @@ static WBRequest *wb_request = nil;
     if (KEYWINDOW) {
         [MBProgressHUD hideAllHUDsForView:KEYWINDOW animated:YES];
         _wb_loadingHudText = nil;
+    }
+    if (_wb_inView) {
+        [MBProgressHUD hideAllHUDsForView:_wb_inView animated:YES];
+        _wb_inView = nil;
     }
 }
 
@@ -741,6 +816,12 @@ static WBRequest *wb_request = nil;
 }
 
 #pragma mark - lazy
+- (NSMutableArray *)wb_plugInArray {
+    if (!_wb_plugInArray) {
+        _wb_plugInArray = [NSMutableArray arrayWithCapacity:0];
+    }
+    return _wb_plugInArray;
+}
 - (NSDictionary *)wb_parameters {
     if (!_wb_parameters) {
         _wb_parameters = [[NSDictionary alloc] init];
@@ -792,3 +873,9 @@ static WBRequest *wb_request = nil;
 @end
 
 
+@implementation WBRequestRecorder
+
+@end
+@implementation WBRequestPlugInBase
+
+@end
