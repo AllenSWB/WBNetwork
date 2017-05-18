@@ -7,7 +7,7 @@
 //
 
 #import "ViewController.h"
-#import "WBNetwork/WBRequest.h"
+#import "WBRequest.h"
 #import "WBReqeustHUDPlugIn.h"
 #import "OneViewController.h"
 #import "TwoViewController.h"
