@@ -28,7 +28,6 @@
 
 //
 @property (assign, nonatomic) WBRequestType wb_requestType;
-@property (assign, nonatomic) WBResponseType wb_responseType;
 @property (strong, nonatomic) NSString *wb_url;
 @property (strong, nonatomic) NSDictionary *wb_parameters;
 @property (copy, nonatomic) WBSuccess wb_success;

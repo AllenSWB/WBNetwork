@@ -10,8 +10,6 @@
 #import <UIKit/UIKit.h>
 #import <AFNetworking/AFNetworking.h>
 
-
-
 #if DEBUG
 
 # define WBLog(fmt, ...) NSLog((@"[文件名:%s]\n" "[函数名:%s]\n" "[行号:%d] \n" fmt), __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__);
@@ -100,6 +98,8 @@ typedef void(^WBBatchRequestDone)(NSDictionary *batchDoneDictionary);
 @property (strong, nonatomic) NSString *baseUrlDebug;
 //release base url
 @property (strong, nonatomic) NSString *baseUrlRelease;
+//交付业务层的数据类型 默认Dictionary
+@property (assign, nonatomic) WBResponseType wb_responseType;
 #pragma mark - chain
 - (WBRequest *(^)(WBRequestType requestType))requestType;
 - (WBRequest *(^)(NSString *urlString))url;
