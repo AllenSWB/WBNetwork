@@ -126,6 +126,9 @@ static WBRequest *wb_request = nil;
             WBLog(@"两次请求时间间隔太短，直接从缓存拿数据");
             [self goGetcacheData:cachePath recorder:recorder];
             
+        } else if ([self isRequestExist:recorder]) {
+            //如果队列里已经有相同的请求了，直接丢弃这个请求
+            [self afterRequestThing:recorder];
         } else {
             //默认回调
             [self defaultCallBack];
@@ -237,6 +240,19 @@ static WBRequest *wb_request = nil;
 }
 
 #pragma mark - network
+
+- (BOOL)isRequestExist:(WBRequestRecorder *)recorder {
+    BOOL isExist = NO;
+    for (WBRequestRecorder *r in self.wb_recorderArray) {
+        if ([recorder.rr_url isEqualToString:r.rr_url] && [recorder.rr_parameters isEqual:r.rr_parameters]) {   //链接和参数都相同，就判定是同一个请求了。
+            isExist = YES;
+            break;
+        }
+    }
+    
+    return isExist;
+}
+
 - (void)startRequestAPIWithRecorder:(WBRequestRecorder *)recorder {
    
     NSURLSessionDataTask *task;
