@@ -5,7 +5,7 @@
 Pod::Spec.new do |s|
 
   s.name         = "WBNetwork"
-  s.version      = "0.1.1"
+  s.version      = "0.1.2"
   s.summary      = "iOS 基于 AFN 封装的链式网络请求框架" 
   s.homepage     = "https://github.com/AllenSWB/WBNetwork"
   s.license      = "MIT"
@@ -14,6 +14,6 @@ Pod::Spec.new do |s|
   s.source       = { :git => "https://github.com/AllenSWB/WBNetwork.git", :tag => "#{s.version}" }
   s.frameworks   = "Foundation",'UIKit'
   s.source_files = "WBNetworkDemo/WBNetwork/*.{h,m}" 
-  s.dependency "AFNetworking", "~> 3.0" 
+  s.dependency "AFNetworking"
 
 end
