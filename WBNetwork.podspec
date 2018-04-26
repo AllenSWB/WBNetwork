@@ -5,7 +5,7 @@
 Pod::Spec.new do |s|
 
   s.name         = "WBNetwork"
-  s.version      = "0.1.0"
+  s.version      = "0.1.1"
   s.summary      = "iOS 基于 AFN 封装的链式网络请求框架" 
   s.homepage     = "https://github.com/AllenSWB/WBNetwork"
   s.license      = "MIT"
