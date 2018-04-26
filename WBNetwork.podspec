@@ -12,8 +12,8 @@ Pod::Spec.new do |s|
   s.author       = "AllenSWB"
   s.platform     = :ios, "8.0"
   s.source       = { :git => "https://github.com/AllenSWB/WBNetwork.git", :tag => "#{s.version}" }
-  s.frameworks = "Foundation",'UIKit'
-  s.source_files  = "WBNetwork", "WBNetwork/WBNetwork/*.{h,m}" 
+  s.frameworks   = "Foundation",'UIKit'
+  s.source_files = "WBNetworkDemo/WBNetwork/*.{h,m}" 
   s.dependency "AFNetworking", "~> 3.0" 
 
 end

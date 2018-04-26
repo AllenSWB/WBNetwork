@@ -14,7 +14,7 @@
 		D55AD7732091DFB000E5B1C4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D55AD7722091DFB000E5B1C4 /* Assets.xcassets */; };
 		D55AD7762091DFB000E5B1C4 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = D55AD7742091DFB000E5B1C4 /* LaunchScreen.storyboard */; };
 		D55AD7792091DFB000E5B1C4 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = D55AD7782091DFB000E5B1C4 /* main.m */; };
-		D55AD7822091E01400E5B1C4 /* WBRequest.m in Sources */ = {isa = PBXBuildFile; fileRef = D55AD7812091E01400E5B1C4 /* WBRequest.m */; };
+		D55AD7862091E90D00E5B1C4 /* WBRequest.m in Sources */ = {isa = PBXBuildFile; fileRef = D55AD7852091E90D00E5B1C4 /* WBRequest.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,8 +30,8 @@
 		D55AD7752091DFB000E5B1C4 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		D55AD7772091DFB000E5B1C4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D55AD7782091DFB000E5B1C4 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
-		D55AD7802091E01400E5B1C4 /* WBRequest.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WBRequest.h; sourceTree = "<group>"; };
-		D55AD7812091E01400E5B1C4 /* WBRequest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = WBRequest.m; sourceTree = "<group>"; };
+		D55AD7842091E90D00E5B1C4 /* WBRequest.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WBRequest.h; sourceTree = "<group>"; };
+		D55AD7852091E90D00E5B1C4 /* WBRequest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = WBRequest.m; sourceTree = "<group>"; };
 		E8A3BB797FC059E9C484B815 /* Pods-WBNetworkDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-WBNetworkDemo.release.xcconfig"; path = "Pods/Target Support Files/Pods-WBNetworkDemo/Pods-WBNetworkDemo.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -50,6 +50,7 @@
 		D55AD75D2091DFB000E5B1C4 = {
 			isa = PBXGroup;
 			children = (
+				D55AD7832091E90D00E5B1C4 /* WBNetwork */,
 				D55AD7682091DFB000E5B1C4 /* WBNetworkDemo */,
 				D55AD7672091DFB000E5B1C4 /* Products */,
 				FFBE0C63F9943F55F8296D1F /* Pods */,
@@ -68,7 +69,6 @@
 		D55AD7682091DFB000E5B1C4 /* WBNetworkDemo */ = {
 			isa = PBXGroup;
 			children = (
-				D55AD77F2091E01400E5B1C4 /* WBNetwork */,
 				D55AD7692091DFB000E5B1C4 /* AppDelegate.h */,
 				D55AD76A2091DFB000E5B1C4 /* AppDelegate.m */,
 				D55AD76C2091DFB000E5B1C4 /* ViewController.h */,
@@ -82,14 +82,13 @@
 			path = WBNetworkDemo;
 			sourceTree = "<group>";
 		};
-		D55AD77F2091E01400E5B1C4 /* WBNetwork */ = {
+		D55AD7832091E90D00E5B1C4 /* WBNetwork */ = {
 			isa = PBXGroup;
 			children = (
-				D55AD7802091E01400E5B1C4 /* WBRequest.h */,
-				D55AD7812091E01400E5B1C4 /* WBRequest.m */,
+				D55AD7842091E90D00E5B1C4 /* WBRequest.h */,
+				D55AD7852091E90D00E5B1C4 /* WBRequest.m */,
 			);
-			name = WBNetwork;
-			path = ../../WBNetwork;
+			path = WBNetwork;
 			sourceTree = "<group>";
 		};
 		D76AC20FE2FFE5DA625464BA /* Frameworks */ = {
@@ -234,7 +233,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D55AD7822091E01400E5B1C4 /* WBRequest.m in Sources */,
+				D55AD7862091E90D00E5B1C4 /* WBRequest.m in Sources */,
 				D55AD76E2091DFB000E5B1C4 /* ViewController.m in Sources */,
 				D55AD7792091DFB000E5B1C4 /* main.m in Sources */,
 				D55AD76B2091DFB000E5B1C4 /* AppDelegate.m in Sources */,

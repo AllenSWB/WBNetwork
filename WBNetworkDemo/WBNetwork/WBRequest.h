@@ -8,13 +8,7 @@
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
-
-//#if __has_include(<AFNetworking/AFNetworking.h>)
-//#import <AFNetworking/AFNetworking.h>
-//#import <AFNetworking.h>
-//#else
-#import "AFNetworking.h"
-//#endif
+#import <AFNetworking/AFNetworking.h>
 
 #if DEBUG
 
@@ -174,4 +168,5 @@ typedef void(^WBBatchRequestDone)(NSDictionary *batchDoneDictionary);
 @property (assign, nonatomic) BOOL isPlugInFree;
 
 @end
+
 

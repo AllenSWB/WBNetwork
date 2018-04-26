@@ -60,13 +60,13 @@ static WBRequest *wb_request = nil;
         _cacheData = YES;
         _defaultParameters = @{};
         _timeoutInterval = 10;
-        
+
 
         _wb_AFManager = [AFHTTPSessionManager manager];
         _wb_AFManager.requestSerializer = [AFHTTPRequestSerializer serializer];
         _wb_AFManager.responseSerializer = [AFHTTPResponseSerializer serializer];
         _wb_AFManager.requestSerializer.timeoutInterval = _timeoutInterval;
-        
+
     }
     return self;
 }
@@ -110,7 +110,7 @@ static WBRequest *wb_request = nil;
 }
 - (WBRequest *(^)())startRequest {
     return ^() {
-        
+
         //创建recorder
         WBRequestRecorder *recorder = [[WBRequestRecorder alloc] init];
         recorder.rr_requestType = self.wb_requestType;
@@ -119,13 +119,13 @@ static WBRequest *wb_request = nil;
         NSString *cachePath = [self pathForCache:recorder];
         recorder.rr_cachePath = cachePath;
         [self.wb_recorderArray addObject:recorder];
-        
-        
+
+
         if (_minRequestInterval > 0 && [self timerIntervalOfCache:cachePath] < _minRequestInterval) {
             //去拿缓存
             WBLog(@"两次请求时间间隔太短，直接从缓存拿数据");
             [self goGetcacheData:cachePath recorder:recorder];
-            
+
         } else if ([self isRequestExist:recorder]) {
             //如果队列里已经有相同的请求了，直接丢弃这个请求
             [self afterRequestThing:recorder];
@@ -138,24 +138,24 @@ static WBRequest *wb_request = nil;
             } else {
                 WBLog(@"没网啊...直接从缓存拿数据")
                 [self goGetcacheData:cachePath recorder:recorder];
-                
+
             }
         }
-        
+
         //恢复默认参数
         if (![_defaultParameters isEqual:@{}]) {//有默认参数
             self.wb_parameters = _defaultParameters;
         } else {
             self.wb_parameters = nil;
         }
-       
+
         return self;
     };
 }
 
 
 - (WBRequest *(^)(WBConstructBody))constructBody {
-    
+
     return ^(WBConstructBody constructBody) {
         _wb_constructBody = constructBody;
         return self;
@@ -199,12 +199,12 @@ static WBRequest *wb_request = nil;
 
 - (WBRequest *(^)())startBatchRequest {
     return ^() {
-        
+
         if (_wb_batchUrls.count == _wb_batchParamters.count && _wb_batchParamters.count != 0) {
-            
+
             NSInteger requestCount = _wb_batchUrls.count;
             [self.wb_batchRecorderArray removeAllObjects];//清空
-            
+
             for (NSInteger i = 0; i < requestCount; i++) {
               //创建recorder
                 WBRequestRecorder *recorder = [[WBRequestRecorder alloc] init];
@@ -220,9 +220,9 @@ static WBRequest *wb_request = nil;
                 recorder.rr_cachePath = cachePath;
                 [self.wb_batchRecorderArray addObject:recorder];
             }
-            
+
             //不去管缓存了
-            
+
             //请求
             if ([self isNetworkReachable]) {
                 for (WBRequestRecorder *recorder in self.wb_batchRecorderArray) {
@@ -249,44 +249,44 @@ static WBRequest *wb_request = nil;
             break;
         }
     }
-    
+
     return isExist;
 }
 
 - (void)startRequestAPIWithRecorder:(WBRequestRecorder *)recorder {
-   
+
     NSURLSessionDataTask *task;
-    
+
     switch (recorder.rr_requestType) {//_wb_requestType
         case WBRequestPost:
         {
             task = [_wb_AFManager POST:recorder.rr_url parameters:recorder.rr_parameters progress:^(NSProgress * _Nonnull uploadProgress) {
-                
+
                 if (_wb_progress) {
                     _wb_progress(uploadProgress);
                 }
             } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
-                
+
                 [self requestSuccessComplete:task obj:responseObject cachePath:recorder.rr_cachePath];
-                
+
             } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
-                
+
                 [self requestFailureHandler:task error:error];
-                
+
             }];
         }
             break;
         case WBRequestGet:
         {
             task = [_wb_AFManager GET:recorder.rr_url parameters:recorder.rr_parameters progress:^(NSProgress * _Nonnull downloadProgress) {
-                
+
                 if (_wb_progress) {
                     _wb_progress(downloadProgress);
                 }
             } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
-                
+
                 [self requestSuccessComplete:task obj:responseObject cachePath:recorder.rr_cachePath];
-                
+
             } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
                 [self requestFailureHandler:task error:error];
             }];
@@ -312,9 +312,9 @@ static WBRequest *wb_request = nil;
         default:
             break;
     }
-    
+
     WBLog(@"===========================请求开始========================\n[DataTask:%@]\n[URL:]%@\n[参数:]%@\n===============================\n",task,recorder.rr_url,recorder.rr_parameters);
-    
+
     recorder.rr_success = _wb_success;
     recorder.rr_failure = _wb_failure;
     recorder.rr_task = task;
@@ -329,11 +329,11 @@ static WBRequest *wb_request = nil;
 }
 
 - (void)defaultCallBack {
-    
+
     __weak typeof(self) weakSelf = self;
     if (!_wb_success) {
         _wb_success = ^(NSURLSessionDataTask *task, id responsedObj) {
-            
+
         };
     }
     if (!_wb_failure) {
@@ -343,7 +343,7 @@ static WBRequest *wb_request = nil;
     }
     if (!_wb_progress) {
         _wb_progress = ^(NSProgress *progress) {
-            
+
         };
     }
 }
@@ -378,9 +378,9 @@ static WBRequest *wb_request = nil;
  请求成功回调
  */
 - (void)requestSuccessComplete:(NSURLSessionDataTask *)task obj:(id)responseObject cachePath:(NSString *)cachePath {
-    
+
     id data = [self responseObj:responseObject];
-   
+
     if (_cacheData) {
         BOOL cache = [NSKeyedArchiver archiveRootObject:data toFile:cachePath];
         if (cache) {
@@ -389,8 +389,8 @@ static WBRequest *wb_request = nil;
             WBLog(@"缓存失败");
         }
     }
-    
-    
+
+
     WBRequestRecorder *recorder = [self getRecorderfromTask:task];
 
     for (WBRequestPlugInBase *plugIn in self.wb_plugInArray) {
@@ -398,8 +398,8 @@ static WBRequest *wb_request = nil;
             [plugIn wb_requestWillComplete:recorder];
         }
     }
-    
-    
+
+
     if (self.wb_batchRecorderArray.count > 0) {
         //batch 请求
         [self batchDoneActionRecorder:recorder Obj:data];
@@ -407,30 +407,30 @@ static WBRequest *wb_request = nil;
         //正常的请求
         if (recorder && recorder.rr_success) {
             recorder.rr_success(task, data);
-            
+
             WBLog(@"===================================请求成功===================\n[DataTask:%@]\n[URL:]%@\n[数据:]%@\n==========================================\n",task,recorder.rr_url,data);
         }
         [self afterRequestThing:recorder];
     }
-    
-    
-    
-    
+
+
+
+
 }
 
 /**
  请求失败回调
  */
 - (void)requestFailureHandler:(NSURLSessionDataTask *)task error:(NSError *)error {
-    
+
     WBRequestRecorder *recorder = [self getRecorderfromTask:task];
-    
+
     for (WBRequestPlugInBase *plugIn in self.wb_plugInArray) {
         if (!plugIn.isPlugInFree && [plugIn respondsToSelector:@selector(wb_requestWillComplete:)]) {
             [plugIn wb_requestWillComplete:recorder];
         }
     }
-    
+
     if (self.wb_batchRecorderArray.count > 0) {
         //batch 请求
         [self batchDoneActionRecorder:recorder Obj:error];
@@ -439,14 +439,14 @@ static WBRequest *wb_request = nil;
         if (recorder && recorder.rr_failure) {
             recorder.rr_failure(task, error);
             WBLog(@"===================================请求失败===================\n[DataTask:%@]\n[URL:]%@\n[失败原因:]%@\n==========================================\n",task,recorder.rr_url,error.description);
-            
+
             //尝试去拿缓存
             [self goGetcacheData:[self pathForCache:recorder] recorder:recorder];
         }
         [self afterRequestThing:recorder];
-        
+
     }
-    
+
 }
 
 - (void)batchDoneActionRecorder:(WBRequestRecorder *)recorder Obj:(id)obj {
@@ -456,7 +456,7 @@ static WBRequest *wb_request = nil;
     }
     WBLog(@"recorders: %@",self.wb_batchRecorderArray);
     [self.wb_batchDoneRequestDic setValue:obj forKey:recorder.rr_url];
-    
+
     if (self.wb_batchDoneRequestDic.allKeys.count == self.wb_batchRecorderArray.count && self.batchRequestDone) {
         self.wb_batchRequestDone(self.wb_batchDoneRequestDic);
         [self afterBatchRequestThing];
@@ -467,7 +467,7 @@ static WBRequest *wb_request = nil;
  根据task获取recorder
  */
 - (WBRequestRecorder *)getRecorderfromTask:(NSURLSessionDataTask *)task {
-    
+
     if (self.wb_batchRecorderArray.count > 0) {
         //batch 请求 从wb_batchRecorderArray 查找
         for (WBRequestRecorder *recorder in self.wb_batchRecorderArray) {
@@ -482,9 +482,9 @@ static WBRequest *wb_request = nil;
                 return recorder;
             }
         }
-        
+
     }
-    
+
     return nil;
 }
 
@@ -496,18 +496,18 @@ static WBRequest *wb_request = nil;
  */
 - (void)afterRequestThing:(WBRequestRecorder *)recorder {
     [self nilParameters];
-    
+
     if (!recorder) {
         return;
     }
-    
+
     for (WBRequestPlugInBase *plugIn in self.wb_plugInArray) {
         if (!plugIn.isPlugInFree && [plugIn respondsToSelector:@selector(wb_requestDidComplete:)]) {
             [plugIn wb_requestDidComplete:recorder];
         }
     }
-    
-    
+
+
     [self deleteRecorder:recorder];
 }
 
@@ -526,7 +526,7 @@ static WBRequest *wb_request = nil;
         for (WBRequestRecorder *recorder in self.wb_batchRecorderArray) {
             for (WBRequestPlugInBase *plugIn in self.wb_plugInArray) {
                 if (!plugIn.isPlugInFree && [plugIn respondsToSelector:@selector(wb_requestDidComplete:)]) {
-                    
+
                     [plugIn wb_requestDidComplete:recorder];
                 }
             }
@@ -577,32 +577,32 @@ static WBRequest *wb_request = nil;
  2. 模拟器测试，关掉电脑Wi-Fi，模拟器还是显示Wi-Fi，也是失效了
  */
 - (BOOL)isNetworkReachable {
-    
+
     UIApplication *app = [UIApplication sharedApplication];
-    
+
     NSArray *children = [[[app valueForKeyPath:@"statusBar"] valueForKeyPath:@"foregroundView"] subviews];
-    
+
     BOOL isStautsVisiable = app.statusBarHidden;
     if (isStautsVisiable) {
         return YES;//如果不可见，下面的监测网络状态代码就没用了，直接去请求API去吧
     }
-    
+
     int type = 0;
     for (id child in children) {
-        
+
         if ([child isKindOfClass:NSClassFromString(@"UIStatusBarDataNetworkItemView")]) {
-            
+
             @try {
                 type = [[child valueForKeyPath:@"dataNetworkType"] intValue];
             } @catch (NSException *exception) {
                 type = 99;//系统的key变了，取不到了
                 WBLog(@"获取私有类属性失败了[%@]",exception);
             } @finally {
-                
+
             };
         }
     }
-    
+
 #if DEBUG
     switch (type) {
         case 1:
@@ -623,13 +623,13 @@ static WBRequest *wb_request = nil;
     }
 #else
 #endif
-    
+
     if (type == 1 || type == 2 || type == 3 || type == 5 || type == 99) {
         return YES;
     } else {
         return NO;
     }
-    
+
 }
 - (NSString *)finalUrl:(NSString *)str {
     if ([str hasPrefix:@"https://"] || [str hasPrefix:@"http://"]) {
@@ -694,14 +694,14 @@ static WBRequest *wb_request = nil;
 - (NSString *)baseCachePath {
     NSString *pathOfLibrary = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
     NSString *path = [pathOfLibrary stringByAppendingPathComponent:@"WBNetworkCache"];
-    
+
     NSFileManager *fileManager = [NSFileManager defaultManager];
-    
+
     if ([fileManager fileExistsAtPath:path]) {
         return path;
     } else {
         BOOL createDoc = [fileManager createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:nil];
-        
+
         if (createDoc) {
             return path;
         } else {
@@ -731,7 +731,7 @@ static WBRequest *wb_request = nil;
     NSString *path = [pathOfLibrary stringByAppendingPathComponent:@"WBNetworkCache"];
 
     NSFileManager *fileManager = [NSFileManager defaultManager];
-    
+
     NSArray *contents = [fileManager contentsOfDirectoryAtPath:path error:NULL];
     NSEnumerator *e = [contents objectEnumerator];
     NSString *filename;
@@ -809,18 +809,18 @@ static WBRequest *wb_request = nil;
  */
 - (NSString *)md5:(NSString *)str {
     const char *cStr = [str UTF8String];
-    
+
     unsigned char result[32];
-    
+
     CC_MD5( cStr, (CC_LONG)strlen(cStr), result );
-    
+
     return [NSString stringWithFormat:@"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
             result[0],result[1],result[2],result[3],
-            
+
             result[4],result[5],result[6],result[7],
-            
+
             result[8],result[9],result[10],result[11],
-            
+
             result[12],result[13],result[14],result[15]];
 }
 
@@ -833,3 +833,4 @@ static WBRequest *wb_request = nil;
 @implementation WBRequestPlugInBase
 
 @end
+
