@@ -3,6 +3,10 @@ iOS 网络请求库、基于AFN3、链式调用
 
 ###一款基于 AFN3.0 封装链式风格的网络请求库 
 
+#### install
+
+pod 'WBNetwork'
+
 ####特性
 
 1. 网络请求用的 AFNetworking
