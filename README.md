@@ -1,13 +1,13 @@
 # WBNetwork
 iOS 网络请求库、基于AFN3、链式调用
 
-###一款基于 AFN3.0 封装链式风格的网络请求库 
+### 一款基于 AFN3.0 封装链式风格的网络请求库 
 
 #### install
 
 pod 'WBNetwork'
 
-####特性
+#### 特性
 
 1. 网络请求用的 AFNetworking
 2. block 回调方式
@@ -19,7 +19,7 @@ pod 'WBNetwork'
 8. 简单数据处理：可以选择交付给业务层三种数据类型: NSDictionary(默认)、NSString、NSData
 9. 定义了一个插件机制。eg：加入 HUD 插件
 
-####使用示例
+#### 使用示例
 
         
         /**
@@ -76,7 +76,7 @@ pod 'WBNetwork'
 	        
 	    }).startBatchRequest();
 
-####编码过程中的思考
+#### 编码过程中的思考
 
 1. 网络请求可以用 NSURLSession 或者 AFNetworking。方便起见，用了 AFNetworking
 2. 回调方式可以用 delegate 或者 block。为了使用方便就用了block。
@@ -93,15 +93,15 @@ pod 'WBNetwork'
 9. 简单的格式处理，可以直接返回给业务层三种数据类型：NSData、NSDictionary、NSString
 10. 缓存使用归档，每个请求的数据写成一个文件。
 
-####Github地址
+#### Github地址
 
 [WBNetwork](https://github.com/AllenSWB/WBNetwork)
 
-####简书地址
+#### 简书地址
 
 [悟空没空](http://www.jianshu.com/p/1329d863ee5d)
 
-####送上一个代码块 ^^
+#### 送上一个代码块 ^^
 
 	 WBREQUEST.url(<#NSString * url#>).parameters(<#NSDictionary * parameters#>).success(^(NSURLSessionDataTask * task,id responseObject){
      <#code#>
